@@ -2574,15 +2574,30 @@ const SERIES_COLORS = {
 };
 
 // Property series get deterministic colors from their prefix
+// Property series get deterministic, high-contrast colors from their prefix
 function colorForProperty(prefix){
-  // Simple hash → index across a set of colors
-  const palette = ["#60a5fa","#34d399","#f59e0b","#a78bfa","#f472b6","#22d3ee","#fb7185","#06b6d4","#94a3b8"];
+  // Hash → reproducible hue in [0..359]
   let h = 0;
-  const s = String(prefix);
+  const s = String(prefix || "");
   for (let i=0;i<s.length;i++){ h = (h*31 + s.charCodeAt(i)) & 0xffffffff; }
-  const idx = Math.abs(h) % palette.length;
-  return palette[idx];
+  const hue = Math.abs(h) % 360;
+
+  // Dark-theme friendly saturation/lighting
+  const sat = 70;   // %
+  const light = 56; // %
+
+  return `hsl(${hue}, ${sat}%, ${light}%)`;
 }
+
+// A slightly lighter/dimmer variant of a base HSL string
+function tweakLightness(hsl, delta = -10){
+  // Expect "hsl(H, S%, L%)"
+  const m = String(hsl).match(/hsl\((\d+),\s*([\d.]+)%\s*,\s*([\d.]+)%\)/i);
+  if(!m) return hsl;
+  const H = Number(m[1]), S = Number(m[2]), L = Math.max(0, Math.min(100, Number(m[3]) + delta));
+  return `hsl(${H}, ${S}%, ${L}%)`;
+}
+
 
 
 
