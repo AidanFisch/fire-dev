@@ -1,0 +1,3687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- added for SEO-->
+	
+<title>FIRE Calculator – Financial Independence & Retirement Tool</title>
+<meta name="description" content="Use the WealthModel FIRE calculator to project your wealth, plan early retirement, and understand your financial independence timeline.">
+
+<!-- Keywords (optional but fine) -->
+<meta name="keywords" content="FIRE calculator, financial independence calculator, wealth model, retirement tool, FIRE number, retirement savings projection">
+
+<!-- OpenGraph (for previews on LinkedIn / socials) -->
+<meta property="og:title" content="WealthModel – FIRE Calculator">
+<meta property="og:description" content="Project your wealth and plan your financial independence timeline.">
+<meta property="og:url" content="https://wealthmodel.io"> <!-- will be patched dynamically -->
+<meta property="og:type" content="website">
+
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+
+<link rel="icon" type="image/png" sizes="32x32" href="https://wealthmodel.io/favicon.png">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "WealthModel – FIRE Calculator",
+  "url": "https://wealthmodel.io/",
+  "applicationCategory": "FinanceApplication",
+  "operatingSystem": "Web",
+  "description": "WealthModel is a free FIRE (Financial Independence, Retire Early) calculator that models income, expenses, superannuation, property, and investments to project your FIRE age and wealth trajectory.",
+  "image": "https://wealthmodel.io/og.png",
+  "author": {
+    "@type": "Organization",
+    "name": "WealthModel"
+  },
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "AUD"
+  }
+}
+</script>
+
+<link rel="canonical" href="https://wealthmodel.io/"><!-- will be patched dynamically -->
+
+<!-- Dynamic canonical + OG + JSON-LD URL so both wealthmodel.io and github.io work -->
+<script>
+  (function () {
+    var currentUrl = location.origin + location.pathname.replace(/index\.html$/, "");
+    try {
+      var canonical = document.querySelector('link[rel="canonical"]');
+      if (canonical) canonical.href = currentUrl;
+
+      var ogUrl = document.querySelector('meta[property="og:url"]');
+      if (ogUrl) ogUrl.setAttribute('content', currentUrl);
+
+      var ld = document.querySelector('script[type="application/ld+json"]');
+      if (ld && ld.textContent) {
+        var data = JSON.parse(ld.textContent);
+        if (data && typeof data === 'object') {
+          data.url = currentUrl;
+          ld.textContent = JSON.stringify(data);
+        }
+      }
+    } catch (e) {
+      console.warn('Meta/LD patch failed', e);
+    }
+  })();
+</script>
+	
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    /* ========= THEME TOKENS ========= */
+/* Auto: if no data-theme attribute, we’ll default using @media below */
+:root {
+  /* baseline (will be overridden by explicit themes or media preference) */
+  --bg0:#070A12;
+  --bg1:#0B0F1B;
+  --card: rgba(255,255,255,.04);
+  --card2: rgba(255,255,255,.06);
+  --stroke: rgba(255,255,255,.10);
+  --stroke2: rgba(255,255,255,.16);
+  --txt: rgba(255,255,255,.92);
+  --muted: rgba(255,255,255,.62);
+  --muted2: rgba(255,255,255,.48);
+  --good:#2ee59d;
+  --warn:#ffcf5c;
+  --bad:#ff5c7a;
+  --accent:#8b5cf6;
+  --accent2:#22d3ee;
+  --shadow: 0 18px 50px rgba(0,0,0,.55);
+  --r:18px;
+  --r2:26px;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+  --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+}
+
+/* ----- Dark theme (your current look) ----- */
+:root[data-theme="dark"] {
+  --bg0:#070A12;
+  --bg1:#0B0F1B;
+  --card: rgba(255,255,255,.04);
+  --card2: rgba(255,255,255,.06);
+  --stroke: rgba(255,255,255,.10);
+  --stroke2: rgba(255,255,255,.16);
+  --txt: rgba(255,255,255,.92);
+  --muted: rgba(255,255,255,.62);
+  --muted2: rgba(255,255,255,.48);
+  --shadow: 0 18px 50px rgba(0,0,0,.55);
+}
+
+/* ----- Light theme (new) ----- */
+:root[data-theme="light"] {
+  --bg0:#f7f8fb;              /* page top */
+  --bg1:#ffffff;              /* page lower */
+  --card: rgba(0,0,0,.04);
+  --card2: rgba(0,0,0,.06);
+  --stroke: rgba(0,0,0,.10);
+  --stroke2: rgba(0,0,0,.14);
+  --txt: rgba(15,20,30,.92);
+  --muted: rgba(15,20,30,.62);
+  --muted2: rgba(15,20,30,.48);
+  --shadow: 0 12px 30px rgba(0,0,0,.08);
+}
+
+/* Respect OS preference **when no explicit choice is set** */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) { color-scheme: light; }
+  :root:not([data-theme]) {
+    --bg0:#f7f8fb;
+    --bg1:#ffffff;
+    --card: rgba(0,0,0,.04);
+    --card2: rgba(0,0,0,.06);
+    --stroke: rgba(0,0,0,.10);
+    --stroke2: rgba(0,0,0,.14);
+    --txt: rgba(15,20,30,.92);
+    --muted: rgba(15,20,30,.62);
+    --muted2: rgba(15,20,30,.48);
+    --shadow: 0 12px 30px rgba(0,0,0,.08);
+  }
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) { color-scheme: dark; }
+  :root:not([data-theme]) {
+    --bg0:#070A12;
+    --bg1:#0B0F1B;
+    --card: rgba(255,255,255,.04);
+    --card2: rgba(255,255,255,.06);
+    --stroke: rgba(255,255,255,.10);
+    --stroke2: rgba(255,255,255,.16);
+    --txt: rgba(255,255,255,.92);
+    --muted: rgba(255,255,255,.62);
+    --muted2: rgba(255,255,255,.48);
+    --shadow: 0 18px 50px rgba(0,0,0,.55);
+  }
+}
+	  
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: var(--sans);
+      color: var(--txt);
+      background:
+        radial-gradient(1200px 700px at 20% 10%, rgba(139,92,246,.22), transparent 55%),
+        radial-gradient(900px 550px at 90% 30%, rgba(34,211,238,.18), transparent 60%),
+        radial-gradient(900px 700px at 60% 95%, rgba(46,229,157,.10), transparent 60%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      min-height:100vh;
+    }
+    a{color:inherit}
+    .wrap{
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 22px 18px 42px;
+    }
+	
+	/* Drawer */
+.drawer-backdrop{
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.45);
+  opacity: 0; pointer-events: none;
+  transition: opacity .2s ease;
+  z-index: 59;
+}
+.drawer-backdrop.show{ opacity: 1; pointer-events: auto; }
+
+.drawer{
+  position: fixed; top:0; right:0; height:100dvh;
+  width: min(560px, 100vw);
+  background: var(--bg1);
+  border-left: 1px solid var(--stroke);
+  box-shadow: var(--shadow);
+  transform: translateX(100%);
+  transition: transform .25s ease;
+  z-index: 60;
+  display:flex; flex-direction: column;
+}
+.drawer.show{ transform: translateX(0); }
+.drawer-head{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding: 12px 14px; border-bottom:1px solid var(--stroke);
+  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+}
+.drawer-body{ padding: 12px; overflow:auto; flex:1; }
+
+/* Optional: tighter subtabs spacing inside drawer */
+#inputsDrawer .subnav button{ padding:6px 12px; }
+
+/* Hide drawer-panel groups by helper class */
+.drawer-panel.hidden{ display:none; }
+
+    .topbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:14px;
+      padding: 16px 18px;
+      border: 1px solid var(--stroke);
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      border-radius: 999px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      position: sticky;
+      top: 12px;
+      z-index: 40;
+    }
+	
+		body.landing .topbar {
+  display: none;
+}
+	/* --- Analysis flags --- */
+	.analysis-flags{
+	  margin-top: 12px;
+	  padding: 12px 14px;
+	  border-radius: 16px;
+	  border: 1px solid rgba(255,255,255,.12);
+	  background: rgba(0,0,0,.14);
+	}
+
+	.analysis-flags.ok{
+	  border-color: rgba(46,229,157,.35);
+	  background: rgba(46,229,157,.08);
+	  color: rgba(255,255,255,.90);
+	}
+
+	.analysis-flags.warn{
+	  border-color: rgba(255,207,92,.35);
+	  background: rgba(255,207,92,.08);
+	  color: rgba(255,255,255,.90);
+	}
+
+	.analysis-flags .title{
+	  font-weight: 850;
+	  margin-bottom: 6px;
+	}
+
+	.analysis-flags ul{
+	  margin: 6px 0 0 18px;
+	  padding: 0;
+	}
+
+	.analysis-flags li{
+	  margin: 4px 0;
+	  color: rgba(255,255,255,.82);
+	}
+
+	.chip-section-label{
+	  font-size: 14px;          /* increase size */
+	  font-weight: 700;         /* make it feel like a section header */
+	  letter-spacing: .3px;
+	  margin-top: 14px;
+	  margin-bottom: 6px;
+	  color: rgba(255,255,255,.82);
+	}
+
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      font-weight:800;
+      letter-spacing:.2px;
+    }
+    .dot{
+      width:12px;height:12px;border-radius:99px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      box-shadow: 0 0 0 6px rgba(139,92,246,.18);
+    }
+    .pill{
+      font-size:12px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border:1px solid var(--stroke);
+      color: var(--muted);
+      background: rgba(0,0,0,.2);
+      margin-left: 8px;
+    }
+    .nav{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      border:1px solid var(--stroke);
+      background: rgba(0,0,0,.18);
+      padding: 6px;
+      border-radius: 999px;
+    }
+    .nav button{
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      padding: 8px 14px;
+      border-radius: 999px;
+      cursor:pointer;
+      font-size: 14px;
+    }
+    .nav button.active{
+      color: var(--txt);
+      border-color: rgba(139,92,246,.50);
+      background: linear-gradient(135deg, rgba(139,92,246,.22), rgba(34,211,238,.10));
+    }
+    .grid{
+      display:grid;
+      gap: 16px;
+    }
+	.grid.cols1{ grid-template-columns: 1fr; }
+    .grid.cols2{ grid-template-columns: 1fr 1fr; }
+    .grid.cols3{ grid-template-columns: 1fr 1fr 1fr; }
+    .grid.cols4{ grid-template-columns: 1fr 1fr 1fr 1fr; }
+    @media (max-width: 980px){ .grid.cols2, .grid.cols3, .grid.cols4{grid-template-columns:1fr} }
+    .card{
+      border: 1px solid var(--stroke);
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      border-radius: var(--r2);
+      box-shadow: var(--shadow);
+      padding: 18px;
+      backdrop-filter: blur(10px);
+    }
+    .card h2, .card h3{
+      margin:0 0 10px 0;
+      letter-spacing:.2px;
+    }
+    .sub{
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+      margin-top: -2px;
+    }
+    .hr{
+      height:1px;
+      background: var(--stroke);
+      margin: 14px 0;
+    }
+
+    .fieldgrid{
+      display:grid;
+      gap: 12px;
+      grid-template-columns: 1fr 1fr;
+    }
+	/* Core inputs gets more columns when full width */
+	.coregrid{
+	  grid-template-columns: 1fr 1fr 1fr;
+	}
+	@media (max-width: 980px){
+	  .coregrid{ grid-template-columns: 1fr; }
+	}
+
+    @media (max-width: 980px){ .fieldgrid{grid-template-columns:1fr} }
+
+    label{
+      display:block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    input, select, textarea{
+      width: 100%;
+      padding: 12px 12px;
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      background: rgba(0,0,0,.25);
+      color: var(--txt);
+      outline: none;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.02);
+    }
+    textarea{ min-height: 240px; font-family: var(--mono); font-size: 12px; line-height: 1.35; }
+    input:focus, select:focus, textarea:focus{
+      border-color: rgba(139,92,246,.55);
+      box-shadow: 0 0 0 4px rgba(139,92,246,.14);
+    }
+    .row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .btn{
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,.06);
+      color: var(--txt);
+      padding: 10px 14px;
+      border-radius: 999px;
+      cursor:pointer;
+      font-weight: 650;
+      letter-spacing:.2px;
+    }
+    .btn.primary{
+      border-color: transparent;
+      background: linear-gradient(135deg, rgba(139,92,246,.95), rgba(34,211,238,.75));
+      box-shadow: 0 12px 30px rgba(139,92,246,.18);
+    }
+    .btn.ghost{
+      background: transparent;
+    }
+    .btn.danger{
+      border-color: rgba(255,92,122,.35);
+      background: rgba(255,92,122,.08);
+    }
+    .small{
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding: 8px 10px;
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      background: rgba(0,0,0,.16);
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .badge .ok{ width:10px;height:10px;border-radius:99px;background: var(--good); }
+    .badge .no{ width:10px;height:10px;border-radius:99px;background: var(--bad); }
+    .kpi{
+      border:1px solid var(--stroke);
+      background: rgba(0,0,0,.18);
+      border-radius: var(--r);
+      padding: 14px 16px;
+    }
+    .kpi .k{
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+    .kpi .v{
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: .2px;
+    }
+
+    .tabs{display:none}
+    .tabs.active{display:block}
+	
+	.subnav{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    border:1px solid var(--stroke);
+    background: rgba(0,0,0,.14);
+    padding: 6px;
+    border-radius: 999px;
+  }
+  .subnav button{
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--muted);
+    padding: 8px 14px;
+    border-radius: 999px;
+    cursor:pointer;
+    font-size: 14px;
+  }
+  .subnav button.active{
+    color: var(--txt);
+    border-color: rgba(34,211,238,.50);
+    background: rgba(34,211,238,.10);
+  }
+  .subtabs{display:none}
+  .subtabs.active{display:block}
+
+/* --- Collapsible cards --- */
+.collapseHeader{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  cursor:pointer;
+  user-select:none;
+}
+.collapseBody{ margin-top: 12px; }
+.collapseBody.hidden{ display:none; }
+
+/* --- Section cards (clean + collapsible) --- */
+.section{
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.16);
+  border-radius: 22px;
+  box-shadow: none;
+  backdrop-filter: blur(10px);
+  overflow: hidden;
+}
+
+.sectionHeader{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding: 14px 16px;
+  cursor:pointer;
+  user-select:none;
+}
+
+.sectionHeader h2{
+  margin:0;
+  font-size:18px;
+}
+
+.sectionBody{
+  padding:14px 16px 16px;
+  border-top:1px solid rgba(255,255,255,.08);
+}
+
+.sectionBody.hidden{
+  display:none;
+}
+
+.chev{
+  width:34px;
+  height:34px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(255,255,255,.04);
+}
+
+
+
+/* tables */
+.tablewrap{
+  overflow:auto;
+  border: 1px solid var(--stroke);
+  border-radius: var(--r);
+  background: rgba(0,0,0,.18);
+}
+
+.tablewrap.scrollY{
+  max-height: 340px;
+  overflow: auto;
+}
+
+table{
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 820px;
+  font-size: 13px;
+}
+th, td{
+  padding: 10px 10px;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  white-space: nowrap;
+}
+th{
+  position: sticky;
+  top: 0;
+  background: rgba(10,13,24,.85);
+  backdrop-filter: blur(8px);
+  color: rgba(255,255,255,.78);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+/* ===============================
+   Mini / quick summary table
+   =============================== */
+.mini-summary table th,
+.mini-summary table td{
+  text-align: center;
+}
+
+.mini-summary table{
+  font-size: 13px;
+}
+
+.mini-summary td:first-child,
+.mini-summary th:first-child{
+  text-align: left; /* Snapshot column */
+}
+
+
+
+    .muted{color: var(--muted)}
+    .mono{font-family: var(--mono)}
+    .right{text-align:right}
+	.mini-summary td.right{ text-align:center !important; }
+	.mini-summary td:first-child{ text-align:left !important; }
+    .chips{
+      display:flex; gap:8px; flex-wrap:wrap;
+      margin-top: 10px;
+    }
+
+
+    .chip{
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      background: rgba(0,0,0,.18);
+      color: var(--muted);
+      cursor:pointer;
+      user-select:none;
+    }
+    .chip.active{
+      color: var(--txt);
+      border-color: rgba(34,211,238,.50);
+      background: rgba(34,211,238,.10);
+    }
+
+    .propHeader{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-bottom: 10px;
+    }
+    .propTitle{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      font-weight: 850;
+    }
+    .propTag{
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      background: rgba(0,0,0,.18);
+      color: var(--muted);
+    }
+	  /* --- Property accordion --- */
+	  .propCardHeader{
+		display:flex;
+		align-items:center;
+		justify-content:space-between;
+		gap:10px;
+		cursor:pointer;
+		user-select:none;
+	  }
+
+	  .propCardHeaderLeft{
+		display:flex;
+		flex-direction:column;
+		gap:6px;
+	  }
+
+	  .propSummaryRow{
+		display:flex;
+		gap:10px;
+		flex-wrap:wrap;
+		color: rgba(255,255,255,.72);
+		font-size: 12px;
+	  }
+
+	  .propSummaryPill{
+		display:inline-flex;
+		align-items:center;
+		gap:6px;
+		padding: 6px 10px;
+		border-radius: 999px;
+		border: 1px solid var(--stroke);
+		background: rgba(0,0,0,.16);
+	  }
+
+	  .propChevron{
+		font-size: 14px;
+		opacity:.7;
+		padding: 8px 10px;
+		border-radius: 999px;
+		border: 1px solid var(--stroke);
+		background: rgba(0,0,0,.14);
+	  }
+
+	  .propBody{
+		margin-top: 12px;
+	  }
+
+	  .hidden{
+		display:none !important;
+	  }
+	  
+	  /* --- Toast --- */
+	.toast{
+	  position: fixed;
+	  right: 18px;
+	  bottom: 18px;
+	  z-index: 9999;
+	  display: flex;
+	  align-items: flex-start;
+	  gap: 10px;
+	  max-width: 420px;
+
+	  padding: 12px 14px;
+	  border-radius: 16px;
+	  border: 1px solid rgba(255,255,255,.14);
+	  background: rgba(10,13,24,.82);
+	  backdrop-filter: blur(10px);
+	  box-shadow: 0 18px 50px rgba(0,0,0,.55);
+
+	  transform: translateY(12px);
+	  opacity: 0;
+	  pointer-events: none;
+	  transition: 180ms ease;
+	}
+	.toast.show{
+	  transform: translateY(0);
+	  opacity: 1;
+	  pointer-events: auto;
+	}
+	.toast .icon{
+	  width: 10px; height: 10px; border-radius: 99px;
+	  margin-top: 6px;
+	  background: var(--warn);
+	  box-shadow: 0 0 0 6px rgba(255,207,92,.12);
+	  flex: 0 0 auto;
+	}
+	.toast .t{
+	  font-weight: 800;
+	  letter-spacing: .2px;
+	  margin: 0;
+	  line-height: 1.2;
+	}
+	.toast .m{
+	  margin: 4px 0 0 0;
+	  color: rgba(255,255,255,.70);
+	  font-size: 13px;
+	  line-height: 1.35;
+	}
+	.toast .x{
+	  margin-left: auto;
+	  border: 1px solid rgba(255,255,255,.12);
+	  background: rgba(255,255,255,.06);
+	  color: rgba(255,255,255,.85);
+	  border-radius: 999px;
+	  padding: 6px 10px;
+	  cursor: pointer;
+	  font-weight: 700;
+	}
+	
+	/* ===== Landing v2 (more engaging) ===== */
+.landing-hero{
+  position: relative;
+  overflow: hidden;
+}
+
+.landing-hero::before{
+  content:"";
+  position:absolute;
+  inset:-120px;
+  background:
+    radial-gradient(700px 420px at 20% 20%, rgba(139,92,246,.35), transparent 55%),
+    radial-gradient(650px 420px at 80% 25%, rgba(34,211,238,.28), transparent 60%),
+    radial-gradient(720px 520px at 55% 85%, rgba(46,229,157,.14), transparent 60%);
+  filter: blur(8px);
+  animation: floatGlow 9s ease-in-out infinite alternate;
+  pointer-events:none;
+  opacity:.55;
+}
+
+@keyframes floatGlow{
+  0%   { transform: translate3d(-10px, 0px, 0) scale(1); }
+  100% { transform: translate3d(10px, -10px, 0) scale(1.02); }
+}
+
+.hero-grid{
+  display:grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+}
+@media (max-width: 980px){ .hero-grid{ grid-template-columns:1fr; } }
+
+.hero-title{
+  font-size: 44px;
+  line-height: 1.05;
+  letter-spacing: -.02em;
+  margin: 0 0 12px 0;
+}
+@media (max-width: 980px){ .hero-title{ font-size: 36px; } }
+
+.hero-lede{
+  font-size: 16px;
+  color: rgba(255,255,255,.72);
+  line-height: 1.55;
+  max-width: 62ch;
+}
+
+.hero-actions{
+  display:flex;
+  gap: 10px;
+  align-items:center;
+  flex-wrap:wrap;
+  margin-top: 18px;
+}
+
+.btn.primary.big{
+  padding: 14px 18px;
+  font-size: 15px;
+  transform: translateY(0);
+  transition: transform 160ms ease, filter 160ms ease;
+  box-shadow: 0 12px 40px rgba(139,92,246,.35);
+}
+.btn.primary.big:hover{ transform: translateY(-1px); filter: brightness(1.05); }
+
+.btn.soft{
+  border-color: rgba(255,255,255,.14);
+  background: rgba(255,255,255,.04);
+}
+.btn.soft:hover{
+  border-color: rgba(34,211,238,.35);
+  background: rgba(34,211,238,.08);
+}
+
+.feature-card{
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.16);
+  border-radius: 22px;
+  padding: 14px 14px;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+.feature-card:hover{
+  transform: translateY(-2px);
+  border-color: rgba(139,92,246,.35);
+  background: rgba(139,92,246,.06);
+}
+
+.kicker{
+  display:inline-flex;
+  gap:8px;
+  align-items:center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.18);
+  color: rgba(255,255,255,.74);
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+
+.pulseDot{
+  width:10px;height:10px;border-radius:999px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  box-shadow: 0 0 0 0 rgba(139,92,246,.35);
+  animation: pulse 1.8s ease-out infinite;
+}
+@keyframes pulse{
+  0%{ box-shadow: 0 0 0 0 rgba(139,92,246,.35); }
+  100%{ box-shadow: 0 0 0 12px rgba(139,92,246,0); }
+}
+
+.preview{
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.18);
+  border-radius: 24px;
+  padding: 14px;
+  position: relative;
+  overflow:hidden;
+}
+
+.preview::after{
+  content:"";
+  position:absolute;
+  inset:-40px;
+  background: radial-gradient(380px 220px at 70% 20%, rgba(34,211,238,.18), transparent 60%);
+  filter: blur(8px);
+  opacity:.75;
+  pointer-events:none;
+}
+
+.previewTop{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  margin-bottom: 10px;
+}
+
+.previewTitle{
+  font-weight: 850;
+  letter-spacing:.2px;
+}
+
+.miniTag{
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.04);
+  color: rgba(255,255,255,.72);
+  opacity: .7;
+}
+
+.sparkline{
+  width: 100%;
+  height: 150px;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.01));
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.steps{
+  display:grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 14px;
+}
+@media (max-width: 980px){ .steps{ grid-template-columns:1fr; } }
+
+.step{
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.14);
+  border-radius: 20px;
+  padding: 14px;
+}
+.step .n{
+  font-family: var(--mono);
+  font-size: 12px;
+  color: rgba(255,255,255,.55);
+  margin-bottom: 6px;
+}
+.step .t{
+  font-weight: 850;
+  margin-bottom: 6px;
+}
+.step .d{
+  color: rgba(255,255,255,.72);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+
+	  /* === FORCE CLEAN BACKGROUND === */
+/* Page background (works for both themes) */
+html, body {
+  background:
+    radial-gradient(1200px 700px at 20% 10%, color-mix(in oklab, var(--accent) 22%, transparent), transparent 55%),
+    radial-gradient(900px 550px at 90% 30%, color-mix(in oklab, var(--accent2) 18%, transparent), transparent 60%),
+    radial-gradient(900px 700px at 60% 95%, color-mix(in oklab, var(--good) 10%, transparent), transparent 60%),
+    linear-gradient(180deg, var(--bg0), var(--bg1)) !important;
+  min-height:100vh;
+  color: var(--txt);
+}
+
+
+
+
+
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand">
+        <span class="dot"></span>
+        <span>FIRE Model</span>
+        <span class="pill" id="apiPill">API: …</span>
+      </div>
+      <div class="nav">
+		  <button id="themeToggle" class="btn soft" style="white-space:nowrap;">
+  🌙 Dark
+</button>
+	  
+	  <!-- the below code readds the home page back in -->
+	  <!--<button id="btnHome" class="active" onclick="showTab('home')">Home</button> -->
+
+        <button id="btnHome" style="display:none"></button>
+        <button id="btnInputs" onclick="showTab('inputs')">Setup</button>
+        <button id="btnResults" onclick="showTab('results')">Results</button>
+      </div>
+    </div>
+	
+<!-- LANDING -->
+<!-- LANDING (v3: minimal/premium) -->
+<section id="tab-landing" class="tabs active" style="margin-top:18px;">
+  <div class="grid cols1">
+    <div class="card landing-hero" style="padding:34px;">
+
+      <div class="hero-grid">
+
+        <!-- LEFT -->
+        <div>
+          <div class="brand" style="margin-bottom:14px;">
+            <span class="dot"></span>
+            <span style="font-size:18px;">FIRE Model</span>
+          </div>
+
+          <h1 class="hero-title" style="margin-top:0;">
+            Know your FIRE age — <span style="background:linear-gradient(135deg, rgba(139,92,246,1), rgba(34,211,238,1)); -webkit-background-clip:text; background-clip:text; color:transparent;">clearly</span>
+          </h1>
+
+          <p class="hero-lede" style="margin-bottom:18px;">
+            Model your path with income, expenses, property, and super. Compare scenarios and see
+            when your plan becomes self-funding — with a simple FIRE marker on the timeline.
+          </p>
+
+          <div class="hero-actions" style="margin-top:0;">
+            <span class="small">No signup · Export CSV · General information only</span>
+          </div>
+
+          <div class="hr" style="margin:18px 0;"></div>
+
+          <div class="grid cols3" style="gap:10px;">
+            <div class="feature-card">
+              <div style="font-weight:850;">FIRE marker</div>
+              <div class="sub" style="margin-top:4px;">See the first point you become eligible.</div>
+            </div>
+            <div class="feature-card">
+              <div style="font-weight:850;">Scenario comparisons</div>
+              <div class="sub" style="margin-top:4px;">Rent vs buy, offset, PPOR vs investment.</div>
+            </div>
+            <div class="feature-card">
+              <div style="font-weight:850;">Cashflow warning</div>
+              <div class="sub" style="margin-top:4px;">Flags when cash goes negative.</div>
+            </div>
+          </div>
+
+          <div class="small" style="margin-top:14px; color:rgba(255,255,255,.52); line-height:1.35;">
+            General information only. Not financial advice.
+          </div>
+		  
+		  
+		  <div style="display:flex; justify-content:center; margin-top:26px;">
+		  <button class="btn primary big"
+				  style="font-size:18px; padding:18px 36px; min-width:260px;"
+				  onclick="enterApp()">
+			Get Started
+		  </button>
+		</div>
+
+		<div class="small"
+			 style="text-align:center; margin-top:10px; color:rgba(255,255,255,.55);">
+		  No signup · Export CSV · General information only
+		</div>
+
+        </div>
+
+<!-- RIGHT: Preview only -->
+        
+
+      </div>
+    </div>
+
+    <!-- === SEO footer / About text (inside #tab-landing) === -->
+    <footer class="card" style="margin-top:18px;">
+      <h2 style="margin:0 0 8px 0;">About WealthModel</h2>
+      <p class="sub" style="line-height:1.55;">
+        WealthModel is a FIRE (Financial Independence, Retire Early) simulator that helps you model
+        income, expenses, superannuation, stock growth, and property cashflow to estimate your
+        projected FIRE age. Compare scenarios (rent vs buy, offset usage, PPOR vs investment),
+        view monthly/annual projections, and see when your plan becomes self‑funding via a clear
+        FIRE marker on the timeline. General information only — not financial advice.
+      </p>
+    </footer>
+    <!-- === End footer / About text === -->
+
+  </div>
+</section>
+
+
+
+    <!-- HOME -->
+ <!-- HOME -->
+	<section id="tab-home" class="tabs active" style="margin-top:18px;">
+	  <div class="grid cols1">
+
+		<!-- What this does (FULL WIDTH) -->
+		<div class="card">
+		  <h2>What this does</h2>
+		  <div class="sub">
+			This is your FIRE simulator UI. You enter assumptions + properties, the backend runs the monthly engine,
+			and you get charts + tables to see when (or if) your plan becomes self-funding.
+		  </div>
+
+		  <div class="hr"></div>
+
+		  <h3 style="margin:0 0 8px 0;">How to use it</h3>
+		  <div class="sub">
+			<b>1) Inputs</b> — set your income/expenses, growth assumptions, and super settings.<br/>
+			<b>2) Properties</b> — add PPOR + investment properties (each has its own loan/rent/costs).<br/>
+			<b>3) Results</b> — view your net worth, cashflow, and the first point you become FIRE-eligible.
+		  </div>
+
+		  <div class="hr"></div>
+
+		  <h3 style="margin:0 0 8px 0;">Key concepts (plain English)</h3>
+		  <div class="sub" style="line-height:1.55;">
+			<b>Offset account</b>: cash you hold reduces interest by “offsetting” your loan balance.
+			Example: $100k cash against a $500k loan means interest is charged on ~$400k (not $500k).<br/><br/>
+
+			<b>Net rent</b>: rent after property running costs (strata/rates/other) and (for investments) interest.
+			It can be negative (negative gearing) or positive.<br/><br/>
+
+			<b>Principal vs interest</b>: interest is a cost; principal is paying down the loan (it reduces your debt and builds equity).<br/><br/>
+
+			<b>FIRE income</b>: the model estimates income after FIRE mainly from:
+			investment property net rent + stock drawdown + (super drawdown once accessible), minus tax and principal servicing.
+		  </div>
+
+		  <div class="hr"></div>
+
+		  <div class="sub">
+			Tip: start with <b>Yearly</b> mode while you’re tuning assumptions (faster, cleaner). Use <b>Monthly</b> only for debugging.
+		  </div>
+
+		  <div class="hr"></div>
+
+		  <div class="row">
+			<button class="btn primary" onclick="showTab('inputs')">Go to Inputs</button>
+			<button class="btn" onclick="showTab('results')">Go to Results</button>
+		  </div>
+		</div>
+
+		<!-- Status (FULL WIDTH, BELOW) -->
+		<!-- change display to style="display:block;" to show and style="display:none;" to hide-->
+		<div class="card" id="statusCard" style="display:none;">
+		  <div class="row">
+			<div>
+			  <h2>Status</h2>
+			  <div class="sub">Backend health and last run details.</div>
+			</div>
+			<div class="row" style="gap:8px;">
+			  <button class="btn" onclick="pingAPI()">Re-check API</button>
+			</div>
+		  </div>
+
+
+
+		  <div class="hr"></div>
+
+		  <div class="row" style="margin-bottom:10px;">
+			<div class="badge" id="apiBadge"><span class="no"></span><span>API not checked yet</span></div>
+		  </div>
+
+		  <div class="fieldgrid coregrid">
+
+			<div>
+			  <label>API Base URL</label>
+			  <input id="apiBase" placeholder="https://fire-api-wixz.onrender.com" />
+			  <div class="small">Must include <span class="mono">https://</span></div>
+			</div>
+			<div>
+			  <label>Endpoint path</label>
+			  <input id="apiPath" value="/fire" />
+			</div>
+		  </div>
+
+		  <div class="hr"></div>
+		  <div class="sub mono" id="lastRunMeta">No run yet.</div>
+		</div>
+
+	  </div>
+	</section>
+
+
+    <!-- INPUTS -->
+<section id="tab-inputs" class="tabs" style="margin-top:18px;">
+  <!-- Home mount where inputs live when not in the drawer -->
+  <div id="inputsHomeMount">
+    <!-- MOVEABLE panel (we'll temporarily move this into the drawer) -->
+    <div id="inputsPanel">
+      <div class="grid">
+
+        <!-- Inputs (Core) -->
+        <div id="panel-core" class="drawer-panel">
+          <div class="section">
+            <div class="sectionHeader" onclick="toggleSection('inputsSectionBody','inputsChev')">
+              <div>
+                <h2>Inputs</h2>
+                <div class="sub">The settings you change most often.</div>
+              </div>
+              <div class="row" style="gap:10px;">
+                <select id="modeSelect" onchange="event.stopPropagation(); setMode(this.value)">
+                  <option value="yearly">Yearly (recommended)</option>
+                  <option value="monthly">Monthly (debug)</option>
+                </select>
+                <button class="btn primary" onclick="event.stopPropagation(); runModel()">Run model</button>
+                <div class="chev" id="inputsChev">▾</div>
+              </div>
+            </div>
+            <div class="sectionBody" id="inputsSectionBody">
+              <div class="fieldgrid coregrid">
+                <div><label>Current Age</label><input id="current_age" type="number" step="1"/></div>
+                <div><label>End Age</label><input id="end_age" type="number" step="1"/></div>
+                <div><label>Initial Savings</label><input id="initial_savings" type="number" step="1"/></div>
+                <div><label>Todays Lifestyle Income</label><input id="todays_lifestyle_income" type="number" step="1"/></div>
+                <div><label>Current Income</label><input id="current_income" type="number" step="1"/></div>
+                <div><label>Current Expenses</label><input id="current_expenses" type="number" step="1"/></div>
+              </div>
+              <div class="hr"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stocks & Super -->
+        <div id="panel-stocks" class="drawer-panel" style="margin-top:16px;">
+          <div class="section">
+            <div class="sectionHeader" onclick="toggleSection('stocksSectionBody','stocksChev')">
+              <div>
+                <h2>Stocks and Super</h2>
+                <div class="sub">Less common settings. Collapse when you’re not changing these.</div>
+              </div>
+              <div class="row" style="gap:10px;"><div class="chev" id="stocksChev">▾</div></div>
+            </div>
+            <div class="sectionBody" id="stocksSectionBody">
+              <div class="fieldgrid">
+                <div><label>Inflation</label><input id="inflation" type="number" step="0.001"/></div>
+                <div><label>Average Salary Increase</label><input id="average_salary_increase" type="number" step="0.001"/></div>
+                <div><label>Stock Growth</label><input id="stock_growth" type="number" step="0.001"/></div>
+                <div><label>Stock Yearly Contribution</label><input id="stock_yearly_contribution" type="number" step="1"/></div>
+                <div><label>Starting Stock Value</label><input id="starting_stock_value" type="number" step="1"/></div>
+                <div><label>Stock Drawdown Per Year</label><input id="stock_swr" type="number" step="0.001"/></div>
+                <div><label>Super Drawdown Per Year</label><input id="super_swr" type="number" step="0.001"/></div>
+                <div><label>Super Access Age</label><input id="super_access_age" type="number" step="1"/></div>
+                <div><label>Super Starting Balance</label><input id="super_starting_balance" type="number" step="1"/></div>
+                <div><label>Super Employee Contribution Rate</label><input id="super_sg_rate" type="number" step="0.001"/></div>
+                <div><label>Super Growth</label><input id="super_growth" type="number" step="0.001"/></div>
+                <div><label>Super Additional Contributions</label><input id="super_additional_annual" type="number" step="1"/></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Properties -->
+        <div id="panel-properties" class="drawer-panel" style="margin-top:16px;">
+          <div class="section">
+            <div class="sectionHeader" onclick="toggleSection('propsSectionBody','propsChev')">
+              <div>
+                <h2>Properties</h2>
+                <div class="sub">Each property is its own card. Collapse this when you’re not editing.</div>
+              </div>
+              <div class="row" style="gap:10px;">
+                <button class="btn" onclick="event.stopPropagation(); addProperty()">+ Add property</button>
+                <div class="chev" id="propsChev">▾</div>
+              </div>
+            </div>
+            <div class="sectionBody" id="propsSectionBody">
+              <div id="propsContainer"></div>
+              <div class="hr"></div>
+              <div id="rawJsonBox" style="display:none; margin-top:12px;">
+                <label class="muted">property_list (JSON)</label>
+                <textarea id="property_json"></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /grid -->
+    </div><!-- /#inputsPanel -->
+  </div><!-- /#inputsHomeMount -->
+</section>
+
+
+    <!-- RESULTS -->
+    <!-- RESULTS -->
+<section id="tab-results" class="tabs" style="margin-top:18px;">
+  <div class="card">
+    <div class="row">
+      <div>
+        <h2 style="margin-bottom:4px;">Results</h2>
+        <div class="sub" id="resultsMeta">Run the model to see charts + tables.</div>
+      </div>
+      <div class="row" style="gap:10px;">
+        <button class="btn" onclick="downloadLastCSV()">Download CSV</button>
+        <!-- CHANGED: open the drawer instead of navigating to Inputs -->
+        <button class="btn" onclick="openInputsDrawer()">Edit inputs</button>
+        <button class="btn ghost" onclick="toggleDebug()">Debug</button>
+      </div>
+    </div>
+
+    <div class="hr"></div>
+
+    <!-- Sub-tabs inside Results -->
+    <div class="subnav" role="tablist" aria-label="Results views">
+      <button id="btnSubOverview" role="tab" aria-selected="true" class="active" onclick="showResultsSubtab('overview')">Overview</button>
+      <button id="btnSubCharts"   role="tab" aria-selected="false" onclick="showResultsSubtab('charts')">Charts</button>
+      <button id="btnSubTables"   role="tab" aria-selected="false" onclick="showResultsSubtab('tables')">Tables</button>
+    </div>
+
+    <!-- OVERVIEW -->
+    <div id="subtab-overview" class="subtabs active" role="tabpanel" aria-labelledby="btnSubOverview">
+      <div class="grid cols4" id="kpiRow" style="margin-top:12px;">
+        <div class="kpi"><div class="k">Cash (end)</div><div class="v" id="kpiCashEnd">—</div></div>
+        <div class="kpi"><div class="k">Stocks (end)</div><div class="v" id="kpiStocksEnd">—</div></div>
+        <div class="kpi"><div class="k">Property equity (end)</div><div class="v" id="kpiEquityEnd">—</div></div>
+        <div class="kpi"><div class="k">Net worth (end)</div><div class="v" id="kpiNWEnd">—</div></div>
+      </div>
+
+      <div class="hr"></div>
+
+      <!-- Quick summary + flags -->
+      <div class="section" style="margin-top:14px;">
+        <div class="sectionHeader" onclick="toggleSection('miniSummaryBody','miniSummaryChev')">
+          <div>
+            <h2>Quick summary</h2>
+            <div class="sub">Now / FIRE / End snapshot.</div>
+          </div>
+          <div class="chev" id="miniSummaryChev">▾</div>
+        </div>
+        <div class="sectionBody" id="miniSummaryBody">
+          <div class="tablewrap mini-summary" id="miniSummaryWrap"></div>
+          <div id="analysisFlags" class="analysis-flags hidden"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHARTS -->
+    <div id="subtab-charts" class="subtabs" role="tabpanel" aria-labelledby="btnSubCharts">
+      <div class="card" style="padding:14px; background: rgba(0,0,0,.18); border-radius: var(--r2); border-color: rgba(255,255,255,.08); margin-top:12px;">
+        <div class="row">
+          <div class="badge" id="rowsBadge"><span class="no"></span><span>No rows yet</span></div>
+          <div class="chips" style="margin-top:0;">
+            <div class="chip" onclick="setChartPreset('key')">Key only</div>
+            <div class="chip" onclick="setChartPreset('all')">All</div>
+            <div class="chip" onclick="setChartPreset('none')">None</div>
+          </div>
+        </div>
+
+        <div class="chip-section-label">Balances</div>
+        <div class="chips" id="chipsBalances"></div>
+
+        <div class="chip-section-label">Cashflow</div>
+        <div class="chips" id="chipsCashflow"></div>
+
+        <div class="chip-section-label">Per-property</div>
+        <div class="chips" id="propertyChips"></div>
+
+        <div style="margin-top:12px;">
+          <canvas id="chartMain"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABLES -->
+    <div id="subtab-tables" class="subtabs" role="tabpanel" aria-labelledby="btnSubTables">
+      <div class="grid cols2" style="margin-top:16px;">
+        <div class="section">
+          <div class="sectionHeader" onclick="toggleSection('summaryTableBody','summaryTableChev')">
+            <div>
+              <h2>Summary table</h2>
+              <div class="sub">Full series (cash/stocks/property/net worth). Click to expand.</div>
+            </div>
+            <div class="chev" id="summaryTableChev">▸</div>
+          </div>
+          <div class="sectionBody hidden" id="summaryTableBody">
+            <div class="tablewrap scrollY" id="summaryTableWrap"></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="sectionHeader" onclick="toggleSection('propEndTableBody','propEndTableChev')">
+            <div>
+              <h2>Property breakdown</h2>
+              <div class="sub">Per-property value/mortgage/equity + net rent. Click to expand.</div>
+            </div>
+            <div class="chev" id="propEndTableChev">▸</div>
+          </div>
+          <div class="sectionBody hidden" id="propEndTableBody">
+            <div class="tablewrap scrollY" id="propEndTableWrap"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Optional debug area remains -->
+      <div id="debugArea" class="hidden">
+        <div class="hr"></div>
+        <div class="row">
+          <h3 style="margin:0;">Full table</h3>
+          <div class="row" style="gap:10px;">
+            <input id="tableSearch" placeholder="Search columns/values…" oninput="renderFullTable()" style="max-width:320px"/>
+            <button class="btn" onclick="toggleFullTable()">Toggle full table</button>
+          </div>
+        </div>
+        <div class="sub" style="margin-top:6px;">This is the raw API table (filter/searchable). Good for debugging.</div>
+        <div id="fullTableBox" style="display:none; margin-top:12px;">
+          <div class="tablewrap" id="fullTableWrap"></div>
+        </div>
+        <div class="hr"></div>
+        <h3 style="margin:0 0 8px 0;">Raw API response (debug)</h3>
+        <div class="sub">If something breaks, this helps you see exactly what the backend returned.</div>
+        <div class="hr"></div>
+        <pre id="rawOut" class="mono" style="white-space:pre-wrap; background:rgba(0,0,0,.22); border:1px solid var(--stroke); padding:12px; border-radius: var(--r); max-height:320px; overflow:auto; margin:0;"></pre>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+</div><!-- /.wrap -->
+
+
+<!-- Slide-over Inputs Drawer (place OUTSIDE .wrap, BEFORE <script>) -->
+<div id="inputsDrawerBackdrop" class="drawer-backdrop" hidden></div>
+<aside id="inputsDrawer" class="drawer" aria-hidden="true" role="dialog" aria-label="Inputs drawer">
+  <div class="drawer-head">
+    <div class="row" style="gap:10px;">
+      <strong>Inputs</strong>
+      <div class="subnav" style="margin-left:8px;">
+        <button id="btnDrawerCore" class="active" onclick="showInputsPanel('core')">Core</button>
+        <button id="btnDrawerStocks" onclick="showInputsPanel('stocks')">Stocks & Super</button>
+        <button id="btnDrawerProps" onclick="showInputsPanel('properties')">Properties</button>
+      </div>
+    </div>
+    <div class="row" style="gap:8px;">
+      <button class="btn soft" onclick="runModel()">Run model</button>
+      <button class="btn" onclick="closeInputsDrawer()" aria-label="Close inputs drawer">Close</button>
+    </div>
+  </div>
+  <div class="drawer-body">
+    <!-- Drawer mount where #inputsPanel is temporarily moved to while open -->
+    <div id="inputsDrawerMount"></div>
+  </div>
+</aside>
+
+
+
+<script>
+/** ---------------------------
+ *  State + Defaults
+ *  --------------------------*/
+const LS_KEY = "fire_frontend_state_v3";
+let state = {
+  apiBase: "https://fire-api-wixz.onrender.com",
+  apiPath: "/fire",
+  mode: "yearly",
+  inputs: {
+    current_age: 25,
+    end_age: 60,
+    inflation: 0.025,
+    todays_lifestyle_income: 80000,
+    initial_savings: 500000,
+    current_income: 200000,
+    current_expenses: 64000,
+    average_salary_increase: 0.035,
+    stock_growth: 0.06,
+    stock_yearly_contribution: 20000,
+    starting_stock_value: 35000,
+	
+	stock_swr: 0.04,
+	super_swr: 0.04,
+    super_access_age: 60,
+    super_starting_balance: 120000,
+    super_sg_rate: 0.11,
+    super_growth: 0.065,
+    super_additional_annual: 0
+  },
+  property_list: [
+    {
+      id: 1,
+      name: "Investment 1 (Apartment)",
+      purchase_price: 400000,
+      current_value: 640000,
+      original_loan: 325000,
+      loan_balance_current: 215000,
+      purchase_fees: 20000,
+      monthly_rent: 2400,
+      strata_quarterly: 1200,
+      rates_quarterly: 900,
+      other_costs_monthly: 200,
+      interest_rate: 0.055,
+      property_growth: 0.03,
+      rental_growth: 0.03,
+      year_bought: 2021,
+      loan_term_years: 30,
+      use_offset: true,
+      is_owner_occupied: false
+    },
+    {
+      id: 2,
+      name: "PPOR",
+      purchase_price: 1200000,
+      current_value: 1200000,
+      original_loan: 900000,
+      loan_balance_current: 0,
+      purchase_fees: 40000,
+      monthly_rent: 0,
+      strata_quarterly: 0,
+      rates_quarterly: 900,
+      other_costs_monthly: 300,
+      interest_rate: 0.055,
+      property_growth: 0.03,
+      rental_growth: 0.0,
+      year_bought: 2027,
+      loan_term_years: 30,
+      use_offset: true,
+      is_owner_occupied: true
+    }
+  ],
+  chartToggles: {
+    netWorth: true,
+    cash: true,
+    stocks: true,
+    propertyEquity: true,
+    fireTarget: true,
+    netRent: false,
+    taxPaid: false,
+	superBalance: false,
+	cashDrawdown: false,
+	fireIncome: true,
+	fireIncomeWithCash: true,
+	
+
+
+  },
+	selectedPropPrefixes: [],
+	expandedPropertyId: null,
+  lastResult: null,
+  collapsed: {},
+};
+
+	// ===== Theme handling =====
+const THEME_KEY = "wm_theme"; // "light" | "dark" | null (auto)
+function applyTheme(theme) {
+  if (theme === "light") {
+    document.documentElement.setAttribute("data-theme", "light");
+    document.documentElement.style.colorScheme = "light";
+  } else if (theme === "dark") {
+    document.documentElement.setAttribute("data-theme", "dark");
+    document.documentElement.style.colorScheme = "dark";
+  } else {
+    // Auto: remove explicit attribute to let @media take over
+    document.documentElement.removeAttribute("data-theme");
+    document.documentElement.style.colorScheme = "";
+  }
+  updateThemeToggleLabel();
+}
+function updateThemeToggleLabel() {
+  const btn = document.getElementById("themeToggle");
+  if (!btn) return;
+  const t = document.documentElement.getAttribute("data-theme");
+  if (!t) {
+    // Auto mode: show what OS prefers
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    btn.textContent = prefersDark ? "☀️ Light" : "🌙 Dark";
+  } else if (t === "dark") {
+    btn.textContent = "☀️ Light";
+  } else {
+    btn.textContent = "🌙 Dark";
+  }
+}
+function getStoredTheme() {
+  try { return localStorage.getItem(THEME_KEY); } catch(e){ return null; }
+}
+function setStoredTheme(v) {
+  try { localStorage.setItem(THEME_KEY, v ?? ""); } catch(e){}
+}
+
+// Apply on load (respect stored or fall back to auto)
+applyTheme(getStoredTheme());
+
+// React to OS changes when in auto mode (no data-theme attribute)
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+  if (!document.documentElement.getAttribute("data-theme")) updateThemeToggleLabel();
+});
+
+// Hook up toggle
+window.addEventListener("load", () => {
+  const btn = document.getElementById("themeToggle");
+  if (!btn) return;
+  btn.onclick = () => {
+    const current = document.documentElement.getAttribute("data-theme");
+    // cycle: auto -> dark -> light -> auto …
+    let next;
+    if (!current) next = "dark";
+    else if (current === "dark") next = "light";
+    else next = null; // auto
+    applyTheme(next);
+    setStoredTheme(next);
+  };
+  updateThemeToggleLabel();
+});
+
+
+let toastTimer = null;
+
+function toggleDebug(){
+  const el = document.getElementById("debugArea");
+  if(!el) return;
+  el.classList.toggle("hidden");
+}
+
+function showToast(title, msg, ms = 2500){
+  const el = document.getElementById("toast");
+  const t  = document.getElementById("toastTitle");
+  const m  = document.getElementById("toastMsg");
+  if(!el || !t || !m) return;
+
+  t.textContent = title || "Notice";
+  m.textContent = msg || "";
+
+  el.classList.add("show");
+
+  if(toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => hideToast(), ms);
+}
+
+function hideToast(){
+  const el = document.getElementById("toast");
+  if(!el) return;
+  el.classList.remove("show");
+}
+
+function toggleCollapse(id){
+  const body = document.getElementById(id);
+  if(!body) return;
+  const isHidden = body.classList.contains("hidden");
+  body.classList.toggle("hidden", !isHidden);
+
+  // persist collapsed state
+  state.collapsed = state.collapsed || {};
+  state.collapsed[id] = !isHidden ? true : false; // true means hidden
+  saveState();
+}
+
+function toggleSection(bodyId, chevId){
+  toggleCollapse(bodyId);
+  const body = document.getElementById(bodyId);
+  const chev = document.getElementById(chevId);
+  if(body && chev){
+    chev.textContent = body.classList.contains("hidden") ? "▸" : "▾";
+  }
+}
+
+
+
+function applyCollapseState(){
+  state.collapsed = state.collapsed || {};
+  for(const [id, isHidden] of Object.entries(state.collapsed)){
+    const el = document.getElementById(id);
+    if(el) el.classList.toggle("hidden", !!isHidden);
+  }
+}
+
+
+
+const FIELD_LABELS = {
+  // Core
+  current_age: "Current Age",
+  end_age: "End Age",
+  initial_savings: "Initial Savings",
+  todays_lifestyle_income: "Target Lifestyle Income (Today)",
+  current_income: "Current Income",
+  current_expenses: "Current Expenses",
+
+  // Advanced
+  inflation: "Inflation Rate",
+  average_salary_increase: "Annual Salary Growth",
+  stock_growth: "Stock Growth Rate",
+  stock_yearly_contribution: "Annual Stock Contribution",
+  starting_stock_value: "Starting Stock Balance",
+  stock_swr: "Stock Safe Withdrawal Rate",
+  super_swr: "Super Safe Withdrawal Rate",
+  super_access_age: "Super Access Age",
+  super_starting_balance: "Starting Super Balance",
+  super_sg_rate: "Super Guarantee Rate",
+  super_growth: "Super Growth Rate",
+  super_additional_annual: "Additional Super Contributions (Annual)",
+};
+
+
+const PROP_FIELD_LABELS = {
+  name: "Property Name",
+  year_bought: "Year Purchased",
+  purchase_price: "Purchase Price",
+  purchase_fees: "Purchase Costs",
+  current_value: "Current Value",
+  original_loan: "Original Loan Amount",
+  loan_balance_current: "Current Loan Balance",
+  interest_rate: "Interest Rate",
+  loan_term_years: "Loan Term (Years)",
+  property_growth: "Capital Growth Rate",
+  monthly_rent: "Monthly Rent",
+  rental_growth: "Rental Growth Rate",
+  strata_quarterly: "Strata (Quarterly)",
+  rates_quarterly: "Council Rates (Quarterly)",
+  other_costs_monthly: "Other Costs (Monthly)",
+};
+
+
+const FIELD_META = {
+  // ---- core money
+  initial_savings: { type: "money" },
+  todays_lifestyle_income: { type: "money" },
+  current_income: { type: "money" },
+  current_expenses: { type: "money" },
+
+  // ---- core rates (stored as decimal, displayed as %)
+  inflation: { type: "percent" },
+  average_salary_increase: { type: "percent" },
+  stock_growth: { type: "percent" },
+  stock_swr: { type: "percent" },
+  super_swr: { type: "percent" },
+  super_sg_rate: { type: "percent" },
+  super_growth: { type: "percent" },
+
+  // ---- integers
+  current_age: { type: "int" },
+  end_age: { type: "int" },
+  super_access_age: { type: "int" },
+
+  // ---- other money
+  stock_yearly_contribution: { type: "money" },
+  starting_stock_value: { type: "money" },
+  super_starting_balance: { type: "money" },
+  super_additional_annual: { type: "money" },
+};
+
+const PROP_FIELD_META = {
+  // money
+  purchase_price: { type: "money" },
+  current_value: { type: "money" },
+  original_loan: { type: "money" },
+  loan_balance_current: { type: "money" },
+  purchase_fees: { type: "money" },
+  monthly_rent: { type: "money" },
+  strata_quarterly: { type: "money" },
+  rates_quarterly: { type: "money" },
+  other_costs_monthly: { type: "money" },
+
+  // rates (decimal in state, % in UI)
+  interest_rate: { type: "percent" },
+  property_growth: { type: "percent" },
+  rental_growth: { type: "percent" },
+
+  // integers
+  year_bought: { type: "int" },
+  loan_term_years: { type: "int" },
+
+  // text
+  name: { type: "text" },
+};
+
+function normSlug(s){
+  return String(s ?? "")
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function displayNameForPrefix(prefix){
+  const pfx = normSlug(prefix);
+  const hit = (state.property_list || []).find(p => normSlug(p?.name).includes(pfx));
+  return hit?.name || prefix;
+}
+
+function renderPropertyChips(propPrefixes){
+  const wrap = document.getElementById("propertyChips");
+  if(!wrap) return;
+  wrap.innerHTML = "";
+
+  if(!propPrefixes || !propPrefixes.length){
+    wrap.innerHTML = `<div class="muted">No per-property series detected.</div>`;
+    return;
+  }
+
+  // Ensure array exists
+  if(!Array.isArray(state.selectedPropPrefixes)) state.selectedPropPrefixes = [];
+
+  propPrefixes.forEach(prefix => {
+    const chip = document.createElement("div");
+    const isActive = state.selectedPropPrefixes.includes(prefix);
+
+    chip.className = "chip" + (isActive ? " active" : "");
+    chip.textContent = displayNameForPrefix(prefix);
+
+    chip.onclick = () => {
+      // toggle prefix in the selection array
+      if(state.selectedPropPrefixes.includes(prefix)){
+        state.selectedPropPrefixes = state.selectedPropPrefixes.filter(p => p !== prefix);
+      } else {
+        state.selectedPropPrefixes = [...state.selectedPropPrefixes, prefix];
+      }
+      saveState();
+      if(state.lastResult) renderResults(state.lastResult);
+    };
+
+    wrap.appendChild(chip);
+  });
+}
+
+
+
+
+
+
+function saveState(){
+  localStorage.setItem(LS_KEY, JSON.stringify(state));
+}
+function isPlainObject(x){
+  return x && typeof x === "object" && !Array.isArray(x);
+}
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    if(!raw) return;
+
+    const parsed = JSON.parse(raw);
+
+    // merge only safe top-level primitives
+    if (isPlainObject(parsed)) {
+      if (typeof parsed.apiBase === "string") state.apiBase = parsed.apiBase;
+      if (typeof parsed.apiPath === "string") state.apiPath = parsed.apiPath;
+      if (typeof parsed.mode === "string") state.mode = parsed.mode;
+	  if (parsed.expandedPropertyId !== undefined) state.expandedPropertyId = parsed.expandedPropertyId;
+
+
+      // IMPORTANT: only merge inputs if it's a real object
+      if (isPlainObject(parsed.inputs)) {
+        state.inputs = { ...state.inputs, ...parsed.inputs };
+      }
+
+      if (Array.isArray(parsed.property_list)) {
+        state.property_list = parsed.property_list;
+      }
+
+      if (isPlainObject(parsed.chartToggles)) {
+        state.chartToggles = { ...state.chartToggles, ...parsed.chartToggles };
+      }
+
+      if (parsed.lastResult) state.lastResult = parsed.lastResult;
+    }
+  } catch(e){
+    // ignore bad storage
+  }
+  
+  state.expandedPropertyId = null;
+
+  // hard defaults if blanks
+  if (!state.apiBase || !String(state.apiBase).trim()) state.apiBase = "https://fire-api-wixz.onrender.com";
+  if (!state.apiPath || !String(state.apiPath).trim()) state.apiPath = "/fire";
+}
+
+
+/** ---------------------------
+ *  Tab navigation
+ *  --------------------------*/
+function showTab(name){
+  document.querySelectorAll(".tabs").forEach(el => el.classList.remove("active"));
+  document.querySelectorAll(".nav button").forEach(el => el.classList.remove("active"));
+  document.getElementById(`tab-${name}`).classList.add("active");
+  document.getElementById(`btn${name.charAt(0).toUpperCase()+name.slice(1)}`).classList.add("active");
+}
+
+function enterApp(){
+  document.body.classList.remove("landing");
+  showTab("inputs");
+}
+
+function initLanding(){
+  document.body.classList.add("landing");
+  showTab("landing");
+}
+
+function scrollLanding(id){
+  const el = document.getElementById(id);
+  if(el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+
+
+/** ---------------------------
+ *  Mode
+ *  --------------------------*/
+function setMode(mode){
+  state.mode = mode;
+
+  const modeSelect = document.getElementById("modeSelect");
+  if (modeSelect) modeSelect.value = mode;
+
+  const chipYearly = document.getElementById("chipModeYearly");
+  const chipMonthly = document.getElementById("chipModeMonthly");
+
+  if (chipYearly) chipYearly.classList.toggle("active", mode === "yearly");
+  if (chipMonthly) chipMonthly.classList.toggle("active", mode === "monthly");
+
+  saveState();
+}
+
+
+
+
+/** ---------------------------
+ *  Raw JSON debug
+ *  --------------------------*/
+function toggleRawJson(){
+  const box = document.getElementById("rawJsonBox");
+  box.style.display = (box.style.display==="none") ? "block" : "none";
+  syncRawJsonFromCards();
+}
+function syncRawJsonFromCards(){
+  const ta = document.getElementById("property_json");
+  ta.value = JSON.stringify(state.property_list, null, 2);
+}
+function applyRawJson(){
+  try{
+    const parsed = JSON.parse(document.getElementById("property_json").value);
+    if(!Array.isArray(parsed)) throw new Error("property_list must be an array");
+    state.property_list = parsed.map((p, idx)=>({ ...p, id: Number(p.id ?? (idx+1)) || (idx+1) }));
+    saveState();
+    renderProperties();
+    alert("Applied JSON → cards.");
+  }catch(e){
+    alert("JSON parse failed: " + e.message);
+  }
+}
+function repairJson(){
+  let s = document.getElementById("property_json").value;
+  s = s.replace(/[“”]/g,'"').replace(/[‘’]/g,"'");
+  s = s.replace(/,\s*([}\]])/g, "$1");
+  document.getElementById("property_json").value = s;
+  alert("Repaired common issues (quotes/trailing commas). Try Apply JSON → cards.");
+}
+function copyPayload(){
+  const payload = buildPayload();
+  console.log("payload.inputs (expanded):", JSON.stringify(payload.inputs, null, 2));
+  navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+  alert("Copied payload to clipboard.");
+}
+
+/** ---------------------------
+ *  Inputs binding
+ *  --------------------------*/
+let pingTimer = null;
+
+function bindCoreInputs(){
+  // API fields
+  document.getElementById("apiBase").value = state.apiBase || "";
+  document.getElementById("apiPath").value = state.apiPath || "";
+
+  // ✅ Attach formatting behavior to ALL core+advanced input fields
+  for (const k of Object.keys(state.inputs)){
+    const el = document.getElementById(k);
+    if (!el) continue;
+
+    const meta = FIELD_META[k] || { type: "money" };
+
+    // Use text inputs so we can display formatted values like "$500,000" or "2.5%"
+    if (meta.type === "money" || meta.type === "percent"){
+      el.type = "text";
+      el.inputMode = "decimal";
+    } else if (meta.type === "int"){
+      el.type = "text";
+      el.inputMode = "numeric";
+    }
+
+    attachUnitInputBehavior(
+      el,
+      meta,
+      () => state.inputs[k],
+      (v) => { state.inputs[k] = v; }
+    );
+  }
+
+  // API listeners
+  document.getElementById("apiBase").oninput = (e)=>{
+    state.apiBase = e.target.value.trim();
+    saveState();
+    clearTimeout(pingTimer);
+    pingTimer = setTimeout(pingAPI, 400);
+  };
+
+  document.getElementById("apiPath").oninput = (e)=>{
+    state.apiPath = e.target.value.trim();
+    saveState();
+  };
+}
+
+
+
+/** ---------------------------
+ *  Property cards UI
+ *  --------------------------*/
+
+function calcNetMonthlyForProperty(p){
+  const rent = toNumber(p.monthly_rent);
+  //* const loan = toNumber(p.loan_balance_current || p.original_loan);\\
+  const loan = toNumber(p.loan_balance_current ?? p.original_loan);
+  const rate = toNumber(p.interest_rate);
+  const interestMonthly = (loan * rate) / 12;
+
+  const strata = toNumber(p.strata_quarterly) / 3;
+  const rates = toNumber(p.rates_quarterly) / 3;
+  const other = toNumber(p.other_costs_monthly);
+
+  return rent - interestMonthly - strata - rates - other;
+}
+
+function propertySummary(p){
+  const value = toNumber(p.current_value);
+  const loan  = toNumber(p.loan_balance_current ?? p.original_loan ?? 0);
+
+  const equity = Math.max(value - loan, 0);
+  const lvr = (value > 0) ? (loan / value) : 0;
+  const netMo = calcNetMonthlyForProperty(p);
+
+  return { value, loan, equity, lvr, netMo };
+}
+
+
+function setExpandedProperty(id){
+  state.expandedPropertyId = (Number(state.expandedPropertyId) === Number(id)) ? null : Number(id);
+  saveState();
+  renderProperties();
+}
+
+
+
+function nextPropertyId(){
+  return Math.max(0, ...state.property_list.map(p=>Number(p.id)||0)) + 1;
+}
+
+
+function addProperty(){
+  const id = nextPropertyId();
+
+  state.property_list.push({
+    id,
+    name: `Property ${id}`,
+    purchase_price: 800000,
+    current_value: 800000,
+    original_loan: 640000,
+    loan_balance_current: 0,
+    purchase_fees: 30000,
+    monthly_rent: 3200,
+    strata_quarterly: 0,
+    rates_quarterly: 900,
+    other_costs_monthly: 200,
+    interest_rate: 0.055,
+    property_growth: 0.03,
+    rental_growth: 0.03,
+    year_bought: new Date().getFullYear(),
+    loan_term_years: 30,
+    use_offset: true,
+    is_owner_occupied: false
+  });
+
+  // keep collapsed on add (don’t auto-open)
+  state.expandedPropertyId = null;
+
+  saveState();
+  renderProperties();
+}
+
+
+
+function removeProperty(id){
+  state.property_list = state.property_list.filter(p => Number(p.id) !== Number(id));
+  saveState();
+  renderProperties();
+}
+function renderProperties(){
+  const wrap = document.getElementById("propsContainer");
+  wrap.innerHTML = "";
+
+  state.property_list.forEach((p, idx)=>{
+    const isPPOR = !!p.is_owner_occupied;
+
+    const card = document.createElement("div");
+    card.className = "card";
+    card.style.marginBottom = "14px";
+    card.style.background = "rgba(0,0,0,.18)";
+    card.style.borderColor = "rgba(255,255,255,.08)";
+    card.style.padding = "14px";
+
+    const expanded = (Number(state.expandedPropertyId) === Number(p.id));
+    const sum = propertySummary(p);
+
+    const header = document.createElement("div");
+    header.className = "propCardHeader";
+
+    header.innerHTML = `
+      <div class="propCardHeaderLeft">
+        <div class="propTitle">
+          <span>${escapeHtml(p.name || ("Property "+(idx+1)))}</span>
+          <span class="propTag">${isPPOR ? "PPOR" : "Investment"}</span>
+          <span class="propTag">id: ${Number(p.id)|| (idx+1)}</span>
+        </div>
+
+        <div class="propSummaryRow">
+          <span class="propSummaryPill">Value <b>${fmtMoney(sum.value)}</b></span>
+          <span class="propSummaryPill">Loan <b>${fmtMoney(sum.loan)}</b></span>
+          <span class="propSummaryPill">Equity <b>${fmtMoney(sum.equity)}</b></span>
+          <span class="propSummaryPill">LVR <b>${(sum.lvr*100).toFixed(0)}%</b></span>
+          <span class="propSummaryPill">Net/mo <b>${fmtMoney(sum.netMo)}</b></span>
+        </div>
+      </div>
+
+      <div class="row" style="gap:8px;">
+        <button class="btn" onclick="event.stopPropagation(); duplicateProperty(${Number(p.id)})">Duplicate</button>
+        <button class="btn danger" onclick="event.stopPropagation(); removeProperty(${Number(p.id)})">Remove</button>
+        <span class="propChevron">${expanded ? "▾" : "▸"}</span>
+      </div>
+    `;
+
+    header.onclick = () => setExpandedProperty(Number(p.id));
+    card.appendChild(header);
+
+
+    const body = document.createElement("div");
+    body.className = "propBody" + (expanded ? "" : " hidden");
+
+    const g = document.createElement("div");
+    g.className = "fieldgrid";
+    g.style.marginTop = "10px";
+
+
+	const fields = [
+	  ["name", "text", "Name"],
+	  ["year_bought", "number", "Year Bought"],
+
+	  ["purchase_price", "number", "Purchase Price"],
+	  ["purchase_fees", "number", "Purchase Fees"],
+
+	  ["current_value", "number", "Current Value"],
+
+	  ["original_loan", "number", "Original Loan"],
+	  ["loan_balance_current", "number", "Current Loan Balance"],
+
+	  ["interest_rate", "number", "Interest Rate (e.g. 5.5% or 0.055)"],
+	  ["loan_term_years", "number", "Loan Term (Years)"],
+
+	  ["property_growth", "number", "Property Growth (Annual)"],
+	  ["monthly_rent", "number", "Rent (Monthly)"],
+	  ["rental_growth", "number", "Rent Growth (Annual)"],
+
+	  ["strata_quarterly", "number", "Strata (Quarterly)"],
+	  ["rates_quarterly", "number", "Council Rates (Quarterly)"],
+	  ["other_costs_monthly", "number", "Other Costs (Monthly)"],
+	];
+
+
+    fields.forEach(([key, type, label])=>{
+      const d = document.createElement("div");
+      const id = `p_${p.id}_${key}`;
+      d.innerHTML = `
+        <label>${label}</label>
+        <input id="${id}" type="${type}" />
+      `;
+      g.appendChild(d);
+    });
+
+    const toggles = document.createElement("div");
+    toggles.style.gridColumn = "1 / -1";
+    toggles.style.display = "flex";
+    toggles.style.gap = "10px";
+    toggles.style.flexWrap = "wrap";
+    toggles.style.marginTop = "6px";
+	toggles.innerHTML = `
+	  <label class="badge" style="cursor:pointer;">
+		<input type="checkbox" id="p_${p.id}_use_offset" style="width:auto; margin-right:8px;" />
+		Use Offset
+	  </label>
+	  <label class="badge" style="cursor:pointer;">
+		<input type="checkbox" id="p_${p.id}_is_owner_occupied" style="width:auto; margin-right:8px;" />
+		Owner-occupied (PPOR)
+	  </label>
+	`;
+
+    g.appendChild(toggles);
+
+    body.appendChild(g);
+    card.appendChild(body);
+    wrap.appendChild(card);
+
+
+    fields.forEach(([key, type])=>{
+		const el = document.getElementById(`p_${p.id}_${key}`);
+
+		const meta = PROP_FIELD_META[key] || { type: (type === "number" ? "money" : "text") };
+
+		
+		if (meta.type === "money" || meta.type === "percent"){
+		  el.type = "text";
+		  el.inputMode = "decimal";
+		} else if (meta.type === "int"){
+		  el.type = "text";
+		  el.inputMode = "numeric";
+		}
+
+
+		attachUnitInputBehavior(
+		  el,
+		  meta,
+		  () => {
+			const prop = state.property_list.find(x => Number(x.id) === Number(p.id));
+			return prop ? prop[key] : (p[key] ?? 0);
+		  },
+		  (v) => {
+			const prop = state.property_list.find(x => Number(x.id) === Number(p.id));
+			if(!prop) return;
+			prop[key] = v;
+			saveState();
+			syncRawJsonFromCards();
+		  }
+		);
+
+    });
+
+    const offEl = document.getElementById(`p_${p.id}_use_offset`);
+    offEl.checked = !!p.use_offset;
+    offEl.onchange = ()=>{
+      const prop = state.property_list.find(x => Number(x.id) === Number(p.id));
+      prop.use_offset = !!offEl.checked;
+      saveState(); syncRawJsonFromCards();
+    };
+
+    const occEl = document.getElementById(`p_${p.id}_is_owner_occupied`);
+    occEl.checked = !!p.is_owner_occupied;
+	occEl.onchange = () => {
+	  const prop = state.property_list.find(x => Number(x.id) === Number(p.id));
+	  if (!prop) return;
+
+	  const wantsPPOR = !!occEl.checked;
+
+	  if (wantsPPOR) {
+		// If another PPOR already exists (not this one), block it + popup + revert UI
+		const otherPPORExists = state.property_list.some(x =>
+		  Number(x.id) !== Number(p.id) && !!x.is_owner_occupied
+		);
+
+		if (otherPPORExists) {
+		  showToast("PPOR limit", "Only 1 PPOR allowed.");
+		  occEl.checked = false;           // revert checkbox UI immediately
+		  prop.is_owner_occupied = false;  // revert state
+		  saveState();
+		  return; // do NOT re-render
+		}
+
+		// Allowed to become PPOR
+		prop.is_owner_occupied = true;
+		prop.monthly_rent = 0;
+		prop.rental_growth = 0;
+	  } else {
+		// Turning PPOR off is always allowed
+		prop.is_owner_occupied = false;
+	  }
+
+	  saveState();
+	  renderProperties();
+	};
+
+
+  });
+
+  syncRawJsonFromCards();
+}
+
+
+function duplicateProperty(id){
+  const p = state.property_list.find(x => Number(x.id) === Number(id));
+  if(!p) return;
+
+  const newId = nextPropertyId();
+  const copy = JSON.parse(JSON.stringify(p));
+
+  // duplicated property should NEVER be PPOR
+  if (copy.is_owner_occupied) copy.is_owner_occupied = false;
+
+  copy.id = newId;
+  copy.name = (p.name || "Property") + " (copy)";
+
+  state.property_list.push(copy);
+  saveState();
+  renderProperties();
+}
+
+
+/** ---------------------------
+ *  API health
+ *  --------------------------*/
+async function pingAPI(){
+  const base = (state.apiBase || "").replace(/\/+$/,"");
+  if(!base){
+    setApiStatus(false, "API base URL missing");
+    return;
+  }
+  try{
+    const r = await fetch(base + "/health", {method:"GET"});
+    const j = await r.json().catch(()=>null);
+    const ok = !!(j && (j.ok === true || j.status === "ok"));
+    setApiStatus(ok, ok ? "ok" : "health returned non-ok");
+  }catch(e){
+    setApiStatus(false, "unreachable");
+  }
+}
+function setApiStatus(ok, text){
+  const pill = document.getElementById("apiPill");
+  pill.textContent = `API: ${ok ? "ok" : "down"}`;
+  const badge = document.getElementById("apiBadge");
+  badge.innerHTML = ok
+    ? `<span class="ok"></span><span>API reachable (${escapeHtml(text)})</span>`
+    : `<span class="no"></span><span>API issue (${escapeHtml(text)})</span>`;
+}
+
+function normalizeInputs(obj){
+  const out = {};
+  for (const [k, v] of Object.entries(obj || {})){
+    out[k] = toNumber(v); // every input becomes a number
+  }
+  return out;
+}
+
+/** ---------------------------
+ *  Build payload + run
+ *  --------------------------*/
+function buildPayload(){
+  return {
+    inputs: normalizeInputs(state.inputs),  // ✅ normalize ALL inputs, no key list
+    property_list: state.property_list,
+    display_month: (state.mode === "monthly")
+  };
+}
+
+function nowMs(){ return performance.now(); }
+
+
+
+async function callPath(base, path, payload){
+  const url = base + path + (path.includes("?") ? "&" : "?") + "t=" + Date.now();
+
+  const body = JSON.stringify(payload);
+  console.log("SENDING body:", body);
+
+  // ✅ TIMING START
+  const t0 = nowMs();
+
+  let r, text;
+  try {
+    r = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type":"application/json",
+        "Cache-Control":"no-store",
+        "Pragma":"no-cache"
+      },
+      cache: "no-store",
+      body
+    });
+  } catch (e) {
+    const tFail = (nowMs() - t0).toFixed(1);
+    console.log(`[timing] FETCH FAILED after ${tFail}ms -> ${path}`);
+    throw new Error(`FETCH_FAILED @ ${path}: ${e.message || e}`);
+  }
+
+  // ✅ Got response headers back (network + server processing up to first byte)
+  const tHeaders = nowMs();
+
+  text = await r.text();
+
+  // ✅ Finished reading body
+  const tBody = nowMs();
+
+  // --- your existing HTML detection ---
+  if ((text || "").trim().startsWith("<!DOCTYPE html")) {
+    console.log(`[timing] ${path} headers ${(tHeaders-t0).toFixed(1)}ms | body ${(tBody-tHeaders).toFixed(1)}ms | total ${(tBody-t0).toFixed(1)}ms`);
+    throw new Error(
+      "HIT_FRONTEND_HTML @ " + path +
+      "\nYour apiBase is probably pointing to the Netlify site, not Render." +
+      "\napiBase=" + base +
+      "\n--- body (first 200 chars) ---\n" +
+      text.slice(0, 200)
+    );
+  }
+
+  let j = null;
+  try { j = JSON.parse(text); } catch(e) {}
+
+  if(!r.ok){
+    console.log(`[timing] ${path} headers ${(tHeaders-t0).toFixed(1)}ms | body ${(tBody-tHeaders).toFixed(1)}ms | total ${(tBody-t0).toFixed(1)}ms`);
+    throw new Error(`HTTP_${r.status} @ ${path}\n--- body ---\n${text.slice(0, 2000)}`);
+  }
+
+  if(!j){
+    console.log(`[timing] ${path} headers ${(tHeaders-t0).toFixed(1)}ms | body ${(tBody-tHeaders).toFixed(1)}ms | total ${(tBody-t0).toFixed(1)}ms`);
+    throw new Error(`NON_JSON_200 @ ${path}\n--- body ---\n${text.slice(0, 2000)}`);
+  }
+
+  // ✅ SUCCESS timing log
+  console.log(
+    `[timing] ${path} headers ${(tHeaders-t0).toFixed(1)}ms | body ${(tBody-tHeaders).toFixed(1)}ms | total ${(tBody-t0).toFixed(1)}ms`
+  );
+
+  return j;
+}
+
+
+
+
+
+async function runModel(){
+  syncInputsFromUI();
+  saveState();
+  const base = (state.apiBase || "").replace(/\/+$/,"");
+  if(!base){
+    alert("Set API Base URL first.");
+    return;
+  }
+
+  const payload = buildPayload();
+  const payloadStr = JSON.stringify(payload);
+  const fp = hashString(payloadStr);
+
+  document.getElementById("lastRunMeta").textContent =
+    `Running… | payload hash=${fp} | mode=${state.mode} | apiPath=${state.apiPath || "(auto)"}`;
+
+  console.log("RUN payload hash:", fp, payload);
+
+  const explicit = (state.apiPath || "").trim();
+
+  const candidates = explicit
+    ? [explicit.startsWith("/") ? explicit : ("/"+explicit)]
+	: ["/fire", "/fire/", "/run", "/fire-model", "/model", "/run_fire_model", "/fire_model", "/calculate"];
+
+  document.getElementById("rawOut").textContent = "Running…";
+  document.getElementById("resultsMeta").textContent = "Running…";
+
+  let result = null;
+  let usedPath = null;
+  let lastErr = null;
+
+  for(const p of candidates){
+    try{
+      result = await callPath(base, p, payload);
+      usedPath = p;
+      break;
+    }catch(e){
+      lastErr = e;
+    }
+  }
+
+  if(!result){
+    document.getElementById("rawOut").textContent = String(lastErr || "Unknown error");
+    document.getElementById("resultsMeta").textContent = "Run failed. See raw output.";
+    showTab("results");
+    return;
+  }
+
+    // Response fingerprint (hash the raw JSON string we actually got back)
+  const respText = result.__rawText ? result.__rawText : JSON.stringify(result);
+  const respHash = hashString(respText);
+
+  state.lastResult = result;
+  saveState();
+
+  document.getElementById("lastRunMeta").textContent =
+    `Last run: ${new Date().toLocaleString()} | endpoint=${usedPath} | payload=${fp} | response=${respHash} | mode=${result.mode}`;
+
+  console.log("RUN result endpoint:", usedPath);
+  console.log("RUN response hash:", respHash);
+
+
+  renderResults(result);
+  showTab("results");
+}
+
+// Draw a vertical "FIRE" marker line on the chart
+const fireMarkerPlugin = {
+  id: "fireMarker",
+  afterDraw(chart, args, pluginOptions) {
+    const { ctx, chartArea, scales } = chart;
+    const xScale = scales.x;
+    if (!xScale || !chartArea) return;
+
+    const idx = pluginOptions?.index;
+    if (idx === null || idx === undefined || idx < 0) return;
+
+    // Category scale: get pixel by index
+    const x = xScale.getPixelForValue(idx);
+    if (!Number.isFinite(x)) return;
+
+    ctx.save();
+
+    // Line styling (adjust to taste)
+    ctx.strokeStyle = pluginOptions?.color || "rgba(139,92,246,.95)";
+    ctx.lineWidth = pluginOptions?.lineWidth || 2;
+    ctx.setLineDash(pluginOptions?.dash || [6, 6]);
+
+    // Vertical line
+    ctx.beginPath();
+    ctx.moveTo(x, chartArea.top);
+    ctx.lineTo(x, chartArea.bottom);
+    ctx.stroke();
+
+    // Optional label
+    const label = pluginOptions?.label || "FIRE";
+    ctx.setLineDash([]);
+    ctx.fillStyle = pluginOptions?.labelColor || "rgba(255,255,255,.92)";
+    ctx.font = pluginOptions?.font || "600 12px ui-sans-serif, system-ui, -apple-system, Segoe UI";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+
+    // Small label box background (optional)
+    const padX = 8, padY = 6;
+    const textW = ctx.measureText(label).width;
+    const boxW = textW + padX * 2;
+    const boxH = 22;
+
+    const bx = Math.min(x + 8, chartArea.right - boxW);
+    const by = chartArea.top + 8;
+
+    ctx.fillStyle = pluginOptions?.boxBg || "rgba(0,0,0,.45)";
+    ctx.strokeStyle = pluginOptions?.boxBorder || "rgba(255,255,255,.15)";
+    ctx.lineWidth = 1;
+
+    // Rounded rect
+    const r = 10;
+    ctx.beginPath();
+    ctx.moveTo(bx + r, by);
+    ctx.arcTo(bx + boxW, by, bx + boxW, by + boxH, r);
+    ctx.arcTo(bx + boxW, by + boxH, bx, by + boxH, r);
+    ctx.arcTo(bx, by + boxH, bx, by, r);
+    ctx.arcTo(bx, by, bx + boxW, by, r);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Label text
+    ctx.fillStyle = pluginOptions?.labelColor || "rgba(255,255,255,.92)";
+    ctx.fillText(label, bx + padX, by + 5);
+
+    ctx.restore();
+  }
+};
+	
+/** ---------------------------
+ *  Results rendering
+ *  --------------------------*/
+let chart = null;
+let lastMetricsRegistry = [];
+
+function renderResults(result){
+  document.getElementById("rawOut").textContent = JSON.stringify(result, null, 2);
+
+  const rows = result.rows || [];
+  const mode = result.mode || "yearly";
+  const n = rows.length;
+
+  const rowsBadge = document.getElementById("rowsBadge");
+  rowsBadge.innerHTML = n
+    ? `<span class="ok"></span><span>${n} rows returned (${escapeHtml(mode)}).</span>`
+    : `<span class="no"></span><span>No rows returned.</span>`;
+
+  document.getElementById("resultsMeta").textContent =
+    n ? `Showing ${n} rows (${mode}).` : "No rows to display.";
+
+  if(!n) return;
+
+  const cols = result.columns || Object.keys(rows[0] || {});
+  const last = rows[n-1];
+
+  const yearKey  = findKey(cols, ["Year"]);
+  const ageKey   = findKey(cols, ["Age"]);
+
+	const fireEligibleKey = findKey(cols, ["FIRE_Eligible", "fire_eligible"]);
+	let fireIndex = -1;
+	
+	if (fireEligibleKey) {
+	  // first row where FIRE_Eligible becomes 1
+	  fireIndex = rows.findIndex(r => toNumber(r[fireEligibleKey]) === 1);
+}
+
+	let fireLabel = "FIRE";
+if (fireIndex >= 0) {
+  const fireRow = rows[fireIndex];
+  const fireAge = ageKey ? toNumber(fireRow[ageKey]) : null;
+
+  // Use year label if available
+  const fireYear = yearKey ? fireRow[yearKey] : null;
+
+  if (Number.isFinite(fireAge) && fireAge > 0) {
+    fireLabel = `FIRE @ ${fireAge.toFixed(1)}`;
+  } else if (fireYear !== null && fireYear !== undefined) {
+    fireLabel = `FIRE (${fireYear})`;
+  }
+}
+
+
+  // Core keys
+  const cashKey  = findKey(cols, ["Cash_Balance_End","Cumulative_Savings","Cash"]);
+  const stockKey = findKey(cols, ["Stock_Balance_End","Total_Stock_Balance","Stocks"]);
+  const superKey = findKey(cols, ["Super_Balance", "Super_Balance_End", "Super"]);
+
+  // Prefer backend totals/net-worth if present
+  const equityTotalKey = findKey(cols, ["Property_Equity_Total","Total_Property_Equity","Total_Equity"]);
+  const nwKey = findKey(cols, [
+    "Net_Worth_Incl_PPOR",
+    "Net_Worth_Ex_PPOR",
+    "Net_Worth",
+    "Net_Worth_Incl_Super_Incl_PPOR",
+    "Net_Worth_Incl_Super_Ex_PPOR"
+  ]);
+
+	// Cashflow/FIRE keys (optional)
+	const fireTargetKey = findKey(cols, [
+	  "Fire_Target_Monthly",
+	  "FIRE_Target_Monthly",
+	  "Target_Monthly_Infl_Adj",
+	  "FIRE_Target"
+	]);
+	
+	// You only want FIRE income series (no passive income series)
+	const fireIncomeKey = findKey(cols, [
+	  "FIRE_Income_Monthly",
+	  "Fire_Replacement_Cashflow_Monthly"
+	]);
+
+  // Debug series (optional)
+  const netRentKey = findKey(cols, ["Total_Net_Rent","Total_Net_Rent_Monthly","Net_Rent_Total"]);
+  const taxKey = findKey(cols, ["Tax_Paid","Tax_Payable_Paid","Tax_Payable","Tax Paid"]);
+
+  // Property totals fallback using prefixes
+  const propPrefixes = detectPropertyPrefixes(cols);
+  renderPropertyChips(propPrefixes);
+
+
+
+
+
+
+	
+  // KPI end row
+  const cashEnd   = getFirstNumber(last, [cashKey]);
+  const stocksEnd = getFirstNumber(last, [stockKey]);
+  const equityEnd = (equityTotalKey && Object.prototype.hasOwnProperty.call(last, equityTotalKey))
+    ? toNumber(last[equityTotalKey])
+    : computePropertyTotals(last, propPrefixes, cols).totalEquity;
+
+  const netWorthEnd = (nwKey && Object.prototype.hasOwnProperty.call(last, nwKey))
+    ? toNumber(last[nwKey])
+    : (cashEnd + stocksEnd + equityEnd);
+
+  document.getElementById("kpiCashEnd").textContent = fmtMoney(cashEnd);
+  document.getElementById("kpiStocksEnd").textContent = fmtMoney(stocksEnd);
+  document.getElementById("kpiEquityEnd").textContent = fmtMoney(equityEnd);
+  document.getElementById("kpiNWEnd").textContent = fmtMoney(netWorthEnd);
+
+  // Build labels + series
+  const labels = rows.map(r => yearKey ? String(r[yearKey] ?? "") : "");
+  const ageLabels = rows.map(r => ageKey ? String(r[ageKey] ?? "") : "");
+
+
+  const seriesFromKey = (key) => rows.map(r => getFirstNumber(r, [key]));
+
+
+// ✅ Always plot monthly units on the chart.
+// If yearly backend gives an annual total, convert to monthly.
+// const passiveIncomeSeries = fireIncomeProxyKey
+//   ? seriesFromKey(fireIncomeProxyKey).map(v => {
+//       return (fireIncomeProxyKey === "Passive_Income_Total") ? (v / 12) : v;
+//     })
+//   : null;
+
+	
+const cashDrawKey = findKey(cols, [
+  "Cash_Drawdown_Monthly",   // NEW yearly “last month” metric
+  "Cash_Drawdown_Paid",
+  "Cash_Drawdown_Total"
+]);
+
+
+const cashDrawSeries = cashDrawKey
+  ? seriesFromKey(cashDrawKey).map(v => (cashDrawKey === "Cash_Drawdown_Total" ? v / 12 : v))
+  : null;
+
+  const cashSeries   = seriesFromKey(cashKey);
+  const stockSeries  = seriesFromKey(stockKey);
+  const superSeries = superKey ? seriesFromKey(superKey) : null;
+
+  const equitySeries = rows.map(r => {
+    if (equityTotalKey && Object.prototype.hasOwnProperty.call(r, equityTotalKey)) return toNumber(r[equityTotalKey]);
+    return computePropertyTotals(r, propPrefixes, cols).totalEquity;
+  });
+
+  const netWorthSeries = rows.map(r => {
+    if (nwKey && Object.prototype.hasOwnProperty.call(r, nwKey)) return toNumber(r[nwKey]);
+    const c = getFirstNumber(r, [cashKey]);
+    const s = getFirstNumber(r, [stockKey]);
+    const e = (equityTotalKey && Object.prototype.hasOwnProperty.call(r, equityTotalKey))
+      ? toNumber(r[equityTotalKey])
+      : computePropertyTotals(r, propPrefixes, cols).totalEquity;
+    return c + s + e;
+  });
+
+  const fireTargetSeries = fireTargetKey ? seriesFromKey(fireTargetKey) : null;
+  
+  const netRentSeries = netRentKey
+  ? seriesFromKey(netRentKey).map(v => {
+      // Yearly mode returns annual net rent, so convert to monthly
+      return (mode === "yearly" ? v / 12 : v);
+    })
+  : null;
+  const taxSeries = taxKey
+  ? seriesFromKey(taxKey).map(v => (mode === "yearly" ? v / 12 : v))
+  : null;
+
+	const fireIncomeSeries = fireIncomeKey ? seriesFromKey(fireIncomeKey) : null;
+	
+const fireIncomeWithCashSeries =
+  (fireIncomeSeries && cashDrawSeries && fireIncomeSeries.length === cashDrawSeries.length)
+    ? fireIncomeSeries.map((v, idx) => v + cashDrawSeries[idx])
+    : null;
+
+
+	
+	const withdrawalsKey = findKey(cols, ["Withdrawals_Total","Withdrawals_Monthly"]);
+	const withdrawalsSeries = withdrawalsKey
+	  ? seriesFromKey(withdrawalsKey).map(v => (withdrawalsKey === "Withdrawals_Total" ? v / 12 : v))
+	  : null;
+
+
+  // Registry of possible chart datasets
+	// Registry of possible chart datasets
+	const METRICS = [
+	  // --- Balances (left axis)
+	  { id:"netWorth",        label:"Net worth",               axis:"y",  data: netWorthSeries,   defaultOn:true,  group:"balances", order:1 },
+	  { id:"cash",            label:"Cash",                    axis:"y",  data: cashSeries,       defaultOn:true,  group:"balances", order:2 },
+	  { id:"stocks",          label:"Stocks",                  axis:"y",  data: stockSeries,      defaultOn:true,  group:"balances", order:3 },
+	  { id:"propertyEquity",  label:"Property equity (total)", axis:"y",  data: equitySeries,     defaultOn:true,  group:"balances", order:4 },
+	  ...(superSeries ? [{ id:"superBalance", label:"Super balance (end)", axis:"y", data: superSeries, defaultOn:false, group:"balances", order:5 }] : []),
+
+	  // --- Cashflow (right axis)
+	  ...(fireTargetSeries ? [{ id:"fireTarget", label:"FIRE target (monthly)", axis:"y2", data: fireTargetSeries, defaultOn:true, group:"cashflow", order:1 }] : []),
+	  ...(fireIncomeSeries ? [{ id:"fireIncome", label:"FIRE income (monthly)", axis:"y2", data: fireIncomeSeries, defaultOn:true, group:"cashflow", order:2 }] : []),
+	  ...(fireIncomeWithCashSeries ? [{ id:"fireIncomeWithCash", label:"FIRE income + cash (monthly)", axis:"y2", data: fireIncomeWithCashSeries, defaultOn:true, group:"cashflow", order:3 }] : []),
+
+	  ...(netRentSeries ? [{ id:"netRent", label:"Net rent (monthly)", axis:"y2", data: netRentSeries, defaultOn:false, group:"cashflow", order:4 }] : []),
+	  ...(withdrawalsSeries ? [{ id:"withdrawals", label:"Withdrawals (monthly)", axis:"y2", data: withdrawalsSeries, defaultOn:false, group:"cashflow", order:5 }] : []),
+	  ...(taxSeries ? [{ id:"taxPaid", label:"Tax paid (monthly)", axis:"y2", data: taxSeries, defaultOn:false, group:"cashflow", order:6 }] : []),
+	  ...(cashDrawSeries ? [{ id:"cashDrawdown", label:"Cash drawdown (monthly)", axis:"y2", data: cashDrawSeries, defaultOn:false, group:"cashflow", order:7 }] : []),
+	];
+
+
+
+  lastMetricsRegistry = METRICS;
+
+  // Ensure toggle values exist (but keep user’s saved preferences)
+  for(const m of METRICS){
+    if(typeof state.chartToggles[m.id] !== "boolean"){
+      state.chartToggles[m.id] = !!m.defaultOn;
+    }
+  }
+  saveState();
+  renderChartChips(METRICS);
+
+
+const datasets = METRICS
+  .filter(m => state.chartToggles[m.id])
+  .map(m => ({
+    label: m.label,
+    data: m.data,
+    yAxisID: m.axis,
+    borderWidth: 2,
+    tension: .25,
+    pointRadius: (mode === "monthly" ? 0 : 2),
+    pointHoverRadius: (mode === "monthly" ? 2 : 4)
+  }));
+
+  
+const selected = Array.isArray(state.selectedPropPrefixes) ? state.selectedPropPrefixes : [];
+
+selected
+  .filter(prefix => propPrefixes.includes(prefix))
+  .forEach(prefix => {
+    const valueKey    = propCol(prefix, "value", cols);
+    const mortKey     = propCol(prefix, "mortgage", cols);
+    const netRentKeyP = propCol(prefix, "netRentMonthly", cols);
+
+    const mortgageSeries = rows.map(r => getFirstNumber(r, [mortKey]));
+    const equitySeriesP  = rows.map(r => {
+      const v = getFirstNumber(r, [valueKey]);
+      const m = getFirstNumber(r, [mortKey]);
+      return Math.max(v - m, 0);
+    });
+    const netRentSeriesP = rows.map(r => {
+  const v = getFirstNumber(r, [netRentKeyP]);
+  return (mode === "yearly" ? v / 12 : v);
+});
+
+    datasets.push(
+      { label: `${prefix} — Mortgage`, data: mortgageSeries, yAxisID:"y",  borderWidth:2, tension:.25, pointRadius:(mode==="monthly"?0:2), pointHoverRadius:(mode==="monthly"?2:4) },
+      { label: `${prefix} — Equity`,   data: equitySeriesP,  yAxisID:"y",  borderWidth:2, tension:.25, pointRadius:(mode==="monthly"?0:2), pointHoverRadius:(mode==="monthly"?2:4) },
+      { label: `${prefix} — Net rent (monthly)`, data: netRentSeriesP, yAxisID:"y2", borderWidth:2, tension:.25, pointRadius:(mode==="monthly"?0:2), pointHoverRadius:(mode==="monthly"?2:4) }
+    );
+  });
+
+
+  const ctx = document.getElementById("chartMain");
+  if(chart){ chart.destroy(); chart = null; }
+
+  chart = new Chart(ctx, {
+    type: "line",
+    data: { 
+	labels, 
+	datasets 
+	},
+    plugins: [fireMarkerPlugin],
+    options: {
+	  locale: "en-US",
+      responsive: true,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { display: false }, // chips are the legend
+        tooltip: {
+          callbacks: {
+            label: (c)=> `${c.dataset.label}: ${fmtMoney(c.parsed.y)}`
+          }
+        },		
+      fireMarker: {
+        index: fireIndex,
+        label: fireLabel,
+        color: "rgba(139,92,246,.95)",
+        dash: [6, 6],
+        lineWidth: 2,
+        boxBg: "rgba(0,0,0,.45)"
+      }
+      },
+      scales: {
+        x: {
+			  position: "top",
+			  ticks: {
+				color: "rgba(255,255,255,.75)"
+			  },
+			  grid: {
+				color: "rgba(255,255,255,.06)"
+			  }
+			},
+		xAge: {
+			  position: "bottom",
+			  labels: ageLabels,
+			  ticks: {
+				color: "rgba(255,255,255,.45)"
+			  },
+			  grid: {
+				drawOnChartArea: false
+			  }
+			},
+
+		  y: {
+			position: "left",
+			title: {
+			  display: true,
+			  text: "Balances",
+			  font: { size: 14, weight: "700" }
+			},
+			ticks:{ color:"rgba(255,255,255,.55)", callback:(v)=> moneyAxis(v) },
+			grid:{ color:"rgba(255,255,255,.06)" }
+		  },
+		  y2: {
+			position: "right",
+			title: {
+			  display: true,
+			  text: "Cashflow",
+			  font: { size: 14, weight: "700" }
+			},
+			ticks:{ color:"rgba(255,255,255,.55)", callback:(v)=> moneyAxis(v) },
+			grid:{ drawOnChartArea:false }
+		  }
+      }
+    }
+  });
+
+
+
+function renderMiniSummary(result){
+  const wrap = document.getElementById("miniSummaryWrap");
+  if(!wrap) return;
+
+  const rows = result.rows || [];
+  if(!rows.length){
+    wrap.innerHTML = `<div style="padding:12px;" class="muted">No data yet.</div>`;
+    return;
+  }
+
+  const cols = result.columns || Object.keys(rows[0] || {});
+  const mode = result.mode || "yearly";
+
+  const yearKey = findKey(cols, ["Year"]);
+  const ageKey  = findKey(cols, ["Age"]);
+
+  const cashKey  = findKey(cols, ["Cash_Balance_End","Cumulative_Savings","Cash"]);
+  const stockKey = findKey(cols, ["Stock_Balance_End","Total_Stock_Balance","Stocks"]);
+  const equityKey= findKey(cols, ["Property_Equity_Total","Total_Property_Equity"]);
+  const nwKey    = findKey(cols, [
+    "Net_Worth_Incl_PPOR",
+    "Net_Worth_Ex_PPOR",
+    "Net_Worth",
+    "Net_Worth_Incl_Super_Incl_PPOR",
+    "Net_Worth_Incl_Super_Ex_PPOR"
+  ]);
+
+  const fireEligibleKey = findKey(cols, ["FIRE_Eligible","fire_eligible"]);
+  const fireIdx = fireEligibleKey ? rows.findIndex(r => toNumber(r[fireEligibleKey]) === 1) : -1;
+
+  const pickRow = (label, r) => {
+    const cash = getFirstNumber(r, [cashKey]);
+    const stocks = getFirstNumber(r, [stockKey]);
+    const equity = equityKey ? getFirstNumber(r, [equityKey]) : 0;
+    const nw = (nwKey && Object.prototype.hasOwnProperty.call(r, nwKey))
+      ? toNumber(r[nwKey])
+      : (cash + stocks + equity);
+
+    return {
+      Snapshot: label,
+      Year: yearKey ? (r[yearKey] ?? "") : "",
+      Age:  ageKey ? (r[ageKey] ?? "") : "",
+      Cash: cash,
+      Stocks: stocks,
+      Property_Equity: equity,
+      Net_Worth: nw
+    };
+  };
+
+  const first = rows[0];
+  const last  = rows[rows.length - 1];
+  const fire  = (fireIdx >= 0) ? rows[fireIdx] : null;
+
+  const mini = [
+    pickRow("Now", first),
+    ...(fire ? [pickRow("FIRE", fire)] : []),
+    pickRow("End", last)
+  ];
+
+wrap.innerHTML = buildTableHTML(mini, ["Snapshot","Year","Age","Cash","Stocks","Property_Equity","Net_Worth"], {
+  formatters: {
+    Cash: fmtMoney,
+    Stocks: fmtMoney,
+    Property_Equity: fmtMoney,
+    Net_Worth: fmtMoney
+  }
+});
+
+}
+
+renderMiniSummary(result);
+renderAnalysisFlags({ rows, cols, fireIndex, cashKey });
+
+	
+  renderSummaryTable(result, propPrefixes);
+  renderPropertyEndTable(last, propPrefixes);
+  renderFullTable();
+}
+
+
+function renderAnalysisFlags({ rows, cols, fireIndex, cashKey }){
+  const el = document.getElementById("analysisFlags");
+  if(!el) return;
+
+  // Your rule:
+  // - If cash at FIRE is negative => warn
+  // - Otherwise => green "No analysis problems"
+  let cashAtFire = 0;
+  if (fireIndex >= 0 && rows[fireIndex]) {
+    cashAtFire = getFirstNumber(rows[fireIndex], [cashKey]);
+  }
+
+  // Show warn only if FIRE exists AND cash at FIRE is negative
+  const cashSeries = rows.map(r => getFirstNumber(r, [cashKey]));
+	const minCash = Math.min(...cashSeries);
+
+	const hasProblem = minCash < 0;
+
+
+  el.classList.remove("hidden", "ok", "warn");
+
+  if(!hasProblem){
+    el.classList.add("ok");
+    el.innerHTML = `
+      <div class="title">✅ Analysis flags</div>
+      <div>No analysis problems</div>
+    `;
+    return;
+  }
+
+  el.classList.add("warn");
+  el.innerHTML = `
+    <div class="title">⚠ Analysis flags</div>
+    <ul>
+      <li>Cash becomes negative during the projection (${fmtMoney(minCash)})</li>
+
+    </ul>
+  `;
+}
+
+
+/** ---------------------------
+ *  Chart chips + presets
+ *  --------------------------*/
+function renderChartChips(METRICS){
+  const wrapBalances = document.getElementById("chipsBalances");
+  const wrapCashflow = document.getElementById("chipsCashflow");
+
+  // fallback (in case you forget HTML change)
+  const fallback = document.getElementById("chartChips");
+
+  const clear = (el) => { if(el) el.innerHTML = ""; };
+  clear(wrapBalances); clear(wrapCashflow);
+  if(fallback) fallback.innerHTML = "";
+
+  const sorted = (METRICS || []).slice().sort((a,b) => {
+    const ga = a.group || "other";
+    const gb = b.group || "other";
+    if (ga !== gb) return ga.localeCompare(gb);
+    return (a.order || 999) - (b.order || 999);
+  });
+
+  sorted.forEach(m => {
+    const chip = document.createElement("div");
+    chip.className = "chip" + (state.chartToggles[m.id] ? " active" : "");
+    chip.textContent = m.label;
+
+    chip.onclick = () => {
+      state.chartToggles[m.id] = !state.chartToggles[m.id];
+      saveState();
+      if(state.lastResult) renderResults(state.lastResult);
+    };
+
+    if (m.group === "balances" && wrapBalances) wrapBalances.appendChild(chip);
+    else if (m.group === "cashflow" && wrapCashflow) wrapCashflow.appendChild(chip);
+    else if (fallback) fallback.appendChild(chip);
+  });
+}
+
+
+function setChartPreset(which){
+  const METRICS = lastMetricsRegistry || [];
+  if(!METRICS.length){
+    if(state.lastResult) renderResults(state.lastResult);
+    return;
+  }
+
+  const ids = METRICS.map(m => m.id);
+
+  if(which === "none"){
+    for(const id of ids) state.chartToggles[id] = false;
+  } else if(which === "all"){
+    for(const id of ids) state.chartToggles[id] = true;
+  } else {
+    // key
+    const keySet = new Set(["netWorth","cash","stocks","superBalance","propertyEquity","fireTarget","fireIncome","fireIncomeWithCash"]);
+    for(const id of ids) state.chartToggles[id] = keySet.has(id);
+  }
+
+  saveState();
+  if(state.lastResult) renderResults(state.lastResult);
+}
+
+/** ---------------------------
+ *  Summary + tables
+ *  --------------------------*/
+function renderSummaryTable(result, propPrefixes){
+  const rows = result.rows || [];
+  const cols = result.columns || (rows[0] ? Object.keys(rows[0]) : []);
+
+  const yearKey   = findKey(cols, ["Year"]);
+  const ageKey    = findKey(cols, ["Age"]);
+
+  const salaryKey = findKey(cols, ["Salary_Annual", "Salary (Increase Inc.)", "Salary"]);
+  const expKey    = findKey(cols, ["Expenses_Annual", "Living Expenses (Increase Inc.)", "Expenses"]);
+  const taxKey    = findKey(cols, ["Tax_Paid","Tax_Payable_Paid","Tax_Payable","Tax Paid"]);
+  const netRentKey= findKey(cols, ["Total_Net_Rent","Total_Net_Rent_Monthly","Total Net Rent"]);
+
+  const cashKey   = findKey(cols, ["Cash_Balance_End","Cumulative_Savings","Cash"]);
+  const stockKey  = findKey(cols, ["Stock_Balance_End","Total_Stock_Balance","Stocks"]);
+
+  const propValueTotalKey = findKey(cols, ["Property_Value_Total", "Total_Property_Value"]);
+  const mortBalTotalKey   = findKey(cols, ["Mortgage_Balance_Total", "Total_Mortgage_Balance"]);
+  const equityTotalKey    = findKey(cols, ["Property_Equity_Total", "Total_Property_Equity"]);
+
+  const nwKey = findKey(cols, [
+    "Net_Worth_Incl_PPOR",
+    "Net_Worth_Ex_PPOR",
+    "Net_Worth",
+    "Net_Worth_Incl_Super_Incl_PPOR",
+    "Net_Worth_Incl_Super_Ex_PPOR"
+  ]);
+
+  const summaryRows = rows.map(r => {
+    const cash   = getFirstNumber(r, [cashKey]);
+    const stocks = getFirstNumber(r, [stockKey]);
+
+    const computed = computePropertyTotals(r, propPrefixes, cols);
+
+    const propValueTotal = (propValueTotalKey && Object.prototype.hasOwnProperty.call(r, propValueTotalKey))
+      ? toNumber(r[propValueTotalKey])
+      : computed.totalValue;
+
+    const mortBalTotal = (mortBalTotalKey && Object.prototype.hasOwnProperty.call(r, mortBalTotalKey))
+      ? toNumber(r[mortBalTotalKey])
+      : computed.totalMortgage;
+
+    const equityTotal = (equityTotalKey && Object.prototype.hasOwnProperty.call(r, equityTotalKey))
+      ? toNumber(r[equityTotalKey])
+      : Math.max(propValueTotal - mortBalTotal, 0);
+
+    const netWorth = (nwKey && Object.prototype.hasOwnProperty.call(r, nwKey))
+      ? toNumber(r[nwKey])
+      : (cash + stocks + equityTotal);
+
+    return {
+      [(yearKey || "Year")]: yearKey ? (r[yearKey] ?? "") : "",
+      [(ageKey  || "Age")]:  ageKey  ? (r[ageKey] ?? "")  : "",
+      Salary_Annual: salaryKey ? (r[salaryKey] ?? "") : "",
+      Expenses_Annual: expKey ? (r[expKey] ?? "") : "",
+      Total_Net_Rent: netRentKey ? (r[netRentKey] ?? "") : "",
+      Tax_Paid: taxKey ? (r[taxKey] ?? "") : "",
+      Cash_End: cash,
+      Stocks_End: stocks,
+      Property_Value_Total: propValueTotal,
+      Mortgage_Balance_Total: mortBalTotal,
+      Property_Equity_Total: equityTotal,
+      Net_Worth: netWorth
+    };
+  });
+
+  const showCols = Object.keys(summaryRows[0] || {});
+  document.getElementById("summaryTableWrap").innerHTML = buildTableHTML(summaryRows, showCols, {
+    formatters: {
+      Salary_Annual: fmtMoney,
+      Expenses_Annual: fmtMoney,
+      Total_Net_Rent: fmtMoney,
+      Tax_Paid: fmtMoney,
+      Cash_End: fmtMoney,
+      Stocks_End: fmtMoney,
+      Property_Value_Total: fmtMoney,
+      Mortgage_Balance_Total: fmtMoney,
+      Property_Equity_Total: fmtMoney,
+      Net_Worth: fmtMoney
+    },
+    rightAlign: new Set([
+      "Salary_Annual","Expenses_Annual","Total_Net_Rent","Tax_Paid",
+      "Cash_End","Stocks_End","Property_Value_Total","Mortgage_Balance_Total",
+      "Property_Equity_Total","Net_Worth"
+    ])
+  });
+}
+
+function renderPropertyEndTable(lastRow, propPrefixes){
+  const colsAll = state.lastResult?.columns || Object.keys(lastRow || {});
+  const rows = propPrefixes.map(prefix => {
+    const snap = getPropertySnapshot(lastRow, prefix, colsAll);
+    return {
+      Property: prefix,
+      Type: snap.isPPOR ? "PPOR" : "Investment",
+      Property_Value: snap.value,
+      Mortgage_Balance: snap.mortgage,
+      Equity: snap.equity,
+      Rent_Monthly: snap.rent,
+      Net_Rent_Monthly: snap.netRent
+    };
+  });
+
+  const cols = ["Property","Type","Property_Value","Mortgage_Balance","Equity","Rent_Monthly","Net_Rent_Monthly"];
+  document.getElementById("propEndTableWrap").innerHTML = rows.length
+    ? buildTableHTML(rows, cols, {
+        formatters: {
+          Property_Value: fmtMoney,
+          Mortgage_Balance: fmtMoney,
+          Equity: fmtMoney,
+          Rent_Monthly: fmtMoney,
+          Net_Rent_Monthly: fmtMoney
+        },
+        rightAlign: new Set(["Property_Value","Mortgage_Balance","Equity","Rent_Monthly","Net_Rent_Monthly"])
+      })
+    : `<div style="padding:12px;" class="muted">No property columns detected in the API output.</div>`;
+}
+
+function toggleFullTable(){
+  const box = document.getElementById("fullTableBox");
+  box.style.display = (box.style.display==="none") ? "block" : "none";
+  if(box.style.display === "block") renderFullTable();
+}
+
+function renderFullTable(){
+  const box = document.getElementById("fullTableWrap");
+  const res = state.lastResult;
+  if(!res || !(res.rows||[]).length){
+    box.innerHTML = `<div style="padding:12px;" class="muted">No data yet.</div>`;
+    return;
+  }
+  const q = (document.getElementById("tableSearch").value || "").toLowerCase().trim();
+  const rows = res.rows || [];
+  const cols = res.columns || Object.keys(rows[0]||{});
+
+  let filtered = rows;
+  if(q){
+    filtered = rows.filter(r=>{
+      for(const c of cols){
+        if(String(c).toLowerCase().includes(q)) return true;
+        const v = r[c];
+        if(v !== null && v !== undefined && String(v).toLowerCase().includes(q)) return true;
+      }
+      return false;
+    });
+  }
+  box.innerHTML = buildTableHTML(filtered.slice(0, 500), cols, {
+    rightAlign: new Set(cols.filter(c=>/balance|value|income|tax|rent|salary|expenses|contribution|offset|mortgage|principal|interest|equity|worth/i.test(c)))
+  }) + (filtered.length > 500 ? `<div class="small" style="padding:10px;">Showing first 500 rows of ${filtered.length}. Use Yearly mode or add search to narrow.</div>` : "");
+}
+
+/** ---------------------------
+ *  CSV download
+ *  --------------------------*/
+function downloadLastCSV(){
+  const res = state.lastResult;
+  if(!res || !res.rows || !res.rows.length){
+    alert("No results to download yet.");
+    return;
+  }
+  const cols = res.columns || Object.keys(res.rows[0]);
+  const csv = toCSV(res.rows, cols);
+  downloadText(csv, `fire_${res.mode || "result"}.csv`, "text/csv");
+}
+function toCSV(rows, cols){
+  const esc = (s)=> `"${String(s ?? "").replace(/"/g,'""')}"`;
+  const head = cols.map(esc).join(",");
+  const body = rows.map(r => cols.map(c => esc(r[c])).join(",")).join("\n");
+  return head + "\n" + body;
+}
+function downloadText(text, filename, type){
+  const blob = new Blob([text], {type});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function syncInputsFromUI(){
+  // Pull current values directly from the DOM so "Run" always uses what you see on screen
+  for (const k of Object.keys(state.inputs)){
+    const el = document.getElementById(k);
+    if (!el) continue;
+    // Only update if the field isn't blank
+	const raw = String(el.value ?? "").trim();
+	const meta = FIELD_META[k] || { type: "money" };
+	if (raw !== "") state.inputs[k] = parseFromUI(raw, meta);
+
+
+  }
+  // Keep API fields in sync too
+  const baseEl = document.getElementById("apiBase");
+  const pathEl = document.getElementById("apiPath");
+  if (baseEl) state.apiBase = baseEl.value.trim();
+  if (pathEl) state.apiPath = pathEl.value.trim();
+
+  saveState();
+}
+
+function stableStringify(obj){
+  // stable-ish stringify for quick fingerprinting (good enough for debugging)
+  return JSON.stringify(obj, Object.keys(obj).sort(), 0);
+}
+
+function hashString(s){
+  // tiny non-crypto hash for fingerprints
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++){
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0).toString(16);
+}
+
+
+/** ---------------------------
+ *  Utilities
+ *  --------------------------*/
+function resetDefaults(){
+  localStorage.removeItem(LS_KEY);
+  loadState();
+  hydrateUI();
+  alert("Defaults restored.");
+}
+function hydrateUI(){
+  document.getElementById("apiBase").value = state.apiBase || "";
+  document.getElementById("apiPath").value = state.apiPath || "";
+  document.getElementById("modeSelect").value = state.mode || "yearly";
+  setMode(state.mode || "yearly");
+  applyCollapseState();
+
+  // ✅ DO NOT do: el.value = state.inputs[k]
+  // bindCoreInputs() + attachUnitInputBehavior already handles formatting + values.
+
+  renderProperties();
+  pingAPI();
+
+  if(state.lastResult){
+    renderResults(state.lastResult);
+    document.getElementById("lastRunMeta").textContent =
+      `Last run loaded from browser storage (${new Date().toLocaleString()}).`;
+  }
+}
+
+function toNumber(v){
+  if (v === null || v === undefined) return 0;
+
+  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
+
+  if (typeof v === "string") {
+    const s = v.trim();
+    if (!s || s === "—" || s === "-") return 0;
+
+    const cleaned = s
+      .replace(/[$€£¥]/g, "")
+      .replace(/,/g, "")
+      .replace(/\s+/g, "");
+
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+
+
+
+function formatForUI(value, meta){
+  const n = Number(value);
+  if (!meta || meta.type === "text") return String(value ?? "");
+  if (meta.type === "int") return Number.isFinite(n) ? String(Math.round(n)) : "";
+  if (meta.type === "money") return Number.isFinite(n) ? fmtMoney(n) : "";
+  if (meta.type === "percent") return Number.isFinite(n) ? `${(n * 100).toFixed(2).replace(/\.00$/,"")}%` : "";
+  return String(value ?? "");
+}
+
+function parseFromUI(str, meta){
+  if (!meta || meta.type === "text") return String(str ?? "");
+
+  const s = String(str ?? "").trim();
+  if (!s) return 0;
+
+  if (meta.type === "percent"){
+    const cleaned = s.replace(/%/g,"").replace(/,/g,"").trim();
+    const raw = Number(cleaned);
+    if (!Number.isFinite(raw)) return 0;
+    return (raw > 1) ? raw / 100 : raw;
+  }
+
+  const n = toNumber(s);
+  return meta.type === "int" ? Math.round(n) : n;
+}
+
+function attachUnitInputBehavior(el, meta, getVal, setVal){
+  if (!el) return;
+
+  el.value = formatForUI(getVal(), meta);
+
+  el.addEventListener("focus", () => {
+    const v = getVal();
+    if (meta?.type === "percent") el.value = String((Number(v) * 100).toFixed(4)).replace(/0+$/,"").replace(/\.$/,"");
+    else el.value = String(v ?? "");
+  });
+
+  const commit = () => {
+    const parsed = parseFromUI(el.value, meta);
+    setVal(parsed);
+    el.value = formatForUI(parsed, meta);
+    saveState();
+  };
+
+  el.addEventListener("blur", commit);
+  el.addEventListener("change", commit);
+}
+
+
+
+const moneyFmt = new Intl.NumberFormat("en-AU", {
+  style: "currency",
+  currency: "AUD",
+  currencyDisplay: "narrowSymbol", // usually "$" not "A$"
+  maximumFractionDigits: 0
+});
+
+function fmtMoney(n){
+  const x = Number(n);
+  if(!Number.isFinite(x)) return "—";
+  return moneyFmt
+    .format(x)
+    .replace(/^A\$/, "$")
+    .replace(/^AU\$/, "$");
+}
+
+
+
+function moneyAxis(v){
+  const x = Number(v);
+  if(!Number.isFinite(x)) return v;
+  if(Math.abs(x) >= 1_000_000) return (x/1_000_000).toFixed(1) + "m";
+  if(Math.abs(x) >= 1_000) return (x/1_000).toFixed(0) + "k";
+  return String(Math.round(x));
+}
+function escapeHtml(s){
+  return String(s ?? "").replace(/[&<>"']/g, (m)=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[m]));
+}
+
+function findKey(cols, candidates){
+  if(!Array.isArray(cols)) return null;
+
+  for (const cand of candidates){
+    if (cols.includes(cand)) return cand;
+  }
+
+  const lowerMap = new Map(cols.map(c => [String(c).toLowerCase(), c]));
+  for (const cand of candidates){
+    const hit = lowerMap.get(String(cand).toLowerCase());
+    if (hit) return hit;
+  }
+
+  const colsLower = cols.map(c => String(c).toLowerCase());
+  for (const cand of candidates){
+    const needle = String(cand).toLowerCase();
+    const idx = colsLower.findIndex(c => c.includes(needle));
+    if (idx >= 0) return cols[idx];
+  }
+
+  return null;
+}
+
+function detectPropertyPrefixes(cols){
+  const set = new Set();
+  if(!Array.isArray(cols)) return [];
+
+  const patterns = [
+    /^(.+)_Property_Value$/i,
+    /^(.+)_Property_Projected_Value$/i,
+    /^(.+)_Mortgage_Balance$/i,
+    /^(.+)_Mortgage_Balance_Projected$/i,
+    /^(.+)_Property_Projected_Rental_Income$/i,
+    /^(.+)_Rent_Income$/i
+  ];
+
+  cols.forEach(c=>{
+    const s = String(c);
+    for(const re of patterns){
+      const m = s.match(re);
+      if(m){ set.add(m[1]); break; }
+    }
+  });
+
+  return Array.from(set);
+}
+
+function getFirstNumber(row, keys){
+  for(const k of keys){
+    if(!k) continue;
+    if(Object.prototype.hasOwnProperty.call(row, k)) return toNumber(row[k]);
+  }
+  return 0;
+}
+
+function propCol(prefix, kind, cols){
+  const candidatesByKind = {
+    value: [
+      `${prefix}_Property_Value`,
+      `${prefix}_Property_Projected_Value`
+    ],
+    mortgage: [
+      `${prefix}_Mortgage_Balance`,
+      `${prefix}_Mortgage_Balance_Projected`
+    ],
+    rentMonthly: [
+      `${prefix}_Rent_Income`,
+      `${prefix}_Property_Projected_Rental_Income`
+    ],
+    netRentMonthly: [
+      `${prefix}_Net_Rent`,
+      `${prefix}_Net_Rent_Monthly`,
+      `${prefix}_Property_Net_Rent`
+    ],
+    isPPOR: [
+      `${prefix}_Is_PPOR`,
+      `${prefix}_is_owner_occupied`,
+      `${prefix}_Is_Owner_Occupied`
+    ]
+  };
+
+  const cands = candidatesByKind[kind] || [];
+  return findKey(cols, cands);
+}
+
+function getPropertySnapshot(row, prefix, cols){
+  const valueKey   = propCol(prefix, "value", cols);
+  const mortKey    = propCol(prefix, "mortgage", cols);
+  const rentKey    = propCol(prefix, "rentMonthly", cols);
+  const netRentKey = propCol(prefix, "netRentMonthly", cols);
+  const isPPORKey  = propCol(prefix, "isPPOR", cols);
+
+  const value = getFirstNumber(row, [valueKey]);
+  const mortgage = getFirstNumber(row, [mortKey]);
+  const equity = Math.max(value - mortgage, 0);
+
+  const rent = getFirstNumber(row, [rentKey]);
+  const netRent = getFirstNumber(row, [netRentKey]);
+
+  const isPPOR = isPPORKey ? !!toNumber(row[isPPORKey]) : false;
+
+  return { value, mortgage, equity, rent, netRent, isPPOR };
+}
+
+function seriesFromRowCalc(rows, fn){
+  return rows.map(r => {
+    const v = fn(r);
+    return Number.isFinite(v) ? v : 0;
+  });
+}
+
+function computePropertyTotals(row, propPrefixes, cols){
+  let totalValue = 0, totalMortgage = 0;
+  for(const prefix of propPrefixes){
+    const snap = getPropertySnapshot(row, prefix, cols);
+    totalValue += snap.value;
+    totalMortgage += snap.mortgage;
+  }
+  return {
+    totalValue,
+    totalMortgage,
+    totalEquity: Math.max(totalValue - totalMortgage, 0)
+  };
+}
+
+function buildTableHTML(rows, cols, {formatters = {}, rightAlign = new Set()} = {}){
+  if(!rows || !rows.length){
+    return `<div style="padding:12px;" class="muted">No rows.</div>`;
+  }
+  const ths = cols.map(c=>`<th>${escapeHtml(c)}</th>`).join("");
+  const tds = rows.map(r=>{
+    const cells = cols.map(c=>{
+      const v = r[c];
+      const fmt = formatters[c];
+      const out = fmt ? fmt(v) : (v ?? "");
+      const cls = rightAlign.has(c) ? "right" : "";
+      return `<td class="${cls}">${escapeHtml(out)}</td>`;
+    }).join("");
+    return `<tr>${cells}</tr>`;
+  }).join("");
+  return `<table><thead><tr>${ths}</tr></thead><tbody>${tds}</tbody></table>`;
+}
+
+/** ---------------------------
+ *  Init
+ *  --------------------------*/
+loadState();
+window.addEventListener("load", ()=>{
+  bindCoreInputs();
+  hydrateUI();
+  initLanding();
+});
+
+/* ====== RESULTS sub-tabs ====== */
+function showResultsSubtab(name){
+  const all = ["overview","charts","tables"];
+  all.forEach(n => {
+    document.getElementById(`subtab-${n}`)?.classList.toggle("active", n === name);
+    const btnId = `btnSub${n.charAt(0).toUpperCase()+n.slice(1)}`;
+    const btn = document.getElementById(btnId);
+    if (btn){
+      btn.classList.toggle("active", n === name);
+      btn.setAttribute("aria-selected", String(n === name));
+    }
+  });
+}
+
+/* ====== Inputs Drawer ====== */
+let _priorFocus = null;
+
+function inputsMounts(){
+  return {
+    panel: document.getElementById("inputsPanel"),
+    home: document.getElementById("inputsHomeMount"),
+    drawer: document.getElementById("inputsDrawerMount"),
+    drawerEl: document.getElementById("inputsDrawer"),
+    backdrop: document.getElementById("inputsDrawerBackdrop"),
+  };
+}
+
+function openInputsDrawer(){
+  const { panel, drawer, drawerEl, backdrop } = inputsMounts();
+  if(!panel || !drawer || !drawerEl || !backdrop) return;
+
+  // Move panel into drawer (single source of truth – no duplicated inputs)
+  if(panel.parentNode !== drawer) drawer.appendChild(panel);
+
+  // Default inner tab
+  showInputsPanel('core');
+
+  drawerEl.classList.add("show");
+  backdrop.hidden = false;
+  setTimeout(()=>backdrop.classList.add("show"), 0);
+
+  _priorFocus = document.activeElement;
+  drawerEl.setAttribute("aria-hidden","false");
+  drawerEl.querySelector("button, [href], input, select, textarea")?.focus();
+
+  // Close on ESC / backdrop
+  document.addEventListener("keydown", handleDrawerEsc, { once:false });
+  backdrop.addEventListener("click", closeInputsDrawer, { once:true });
+}
+
+function closeInputsDrawer(){
+  const { panel, home, drawerEl, backdrop } = inputsMounts();
+  if(!panel || !home || !drawerEl || !backdrop) return;
+
+  // Move back to inputs tab
+  if(panel.parentNode !== home) home.appendChild(panel);
+
+  drawerEl.classList.remove("show");
+  drawerEl.setAttribute("aria-hidden","true");
+  backdrop.classList.remove("show");
+  setTimeout(()=>{ backdrop.hidden = true; }, 200);
+
+  document.removeEventListener("keydown", handleDrawerEsc);
+  if(_priorFocus && typeof _priorFocus.focus === "function") {
+    try{ _priorFocus.focus(); }catch(e){}
+  }
+}
+
+function handleDrawerEsc(e){
+  if(e.key === "Escape") closeInputsDrawer();
+}
+
+/* Ensure panel is put back in Inputs when switching top-level tabs */
+function ensureInputsAtHome(){
+  const { panel, home } = inputsMounts();
+  if(panel && home && panel.parentNode !== home){
+    home.appendChild(panel);
+  }
+}
+
+/* Wrap your original showTab to also restore the panel when leaving Results */
+const _origShowTab = showTab;
+showTab = function(name){
+  ensureInputsAtHome();
+  _origShowTab(name);
+};
+
+/* Drawer inner tabs (Core / Stocks & Super / Properties) */
+function showInputsPanel(which){
+  const groups = [
+    { id:"core", el: document.getElementById("panel-core"),  btn: document.getElementById("btnDrawerCore") },
+    { id:"stocks", el: document.getElementById("panel-stocks"), btn: document.getElementById("btnDrawerStocks") },
+    { id:"properties", el: document.getElementById("panel-properties"), btn: document.getElementById("btnDrawerProps") },
+  ];
+  groups.forEach(g=>{
+    const isActive = (g.id === which);
+    if(g.el) g.el.classList.toggle("hidden", !isActive);
+    if(g.btn){
+      g.btn.classList.toggle("active", isActive);
+      g.btn.setAttribute("aria-selected", String(isActive));
+    }
+  });
+}
+
+/* Optional: after rendering results, default to Overview tab */
+(function(){
+  const _origRenderResults = renderResults;
+  renderResults = function(result){
+    _origRenderResults(result);
+    showResultsSubtab('overview');
+  };
+})();
+
+</script>
+
+</body>
+</html>
