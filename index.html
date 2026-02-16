@@ -276,6 +276,16 @@
 	  color: rgba(255,255,255,.82);
 	}
 
+	/* --- Legend for per-property series --- */
+	.legend{ display:flex; gap:14px; flex-wrap:wrap; align-items:center; }
+	.legendGroup{ display:flex; align-items:center; gap:10px; padding:6px 8px; border:1px solid var(--stroke); border-radius:12px; background:rgba(0,0,0,.12); }
+	.legendTitle{ font-weight:800; color:rgba(255,255,255,.85); }
+	.legendItem{ display:inline-flex; align-items:center; gap:6px; color:rgba(255,255,255,.78); font-size:12px; }
+	.legendSwatch{
+	  width:12px; height:3px; border-radius:2px; display:inline-block;
+	  box-shadow: 0 0 0 2px rgba(255,255,255,.06);
+	}	
+
     .brand{
       display:flex;
       align-items:center;
@@ -1348,6 +1358,8 @@ html, body {
 
         <div class="chip-section-label">Per-property</div>
         <div class="chips" id="propertyChips"></div>
+		<!-- Legend for per-property series (auto-populated by JS) -->
+		<div id="propertyLegend" class="legend" style="margin-top:6px;"></div>
 
         <div style="margin-top:12px;">
           <canvas id="chartMain"></canvas>
@@ -1777,6 +1789,8 @@ function renderPropertyChips(propPrefixes){
     return;
   }
 
+
+
   // Ensure array exists
   if(!Array.isArray(state.selectedPropPrefixes)) state.selectedPropPrefixes = [];
 
@@ -1804,7 +1818,35 @@ function renderPropertyChips(propPrefixes){
 }
 
 
+function renderPropertyLegend(propPrefixes){
+  const box = document.getElementById("propertyLegend");
+  if(!box) return;
 
+  const selected = (Array.isArray(state.selectedPropPrefixes) ? state.selectedPropPrefixes : [])
+    .filter(p => propPrefixes.includes(p));
+
+  if(!selected.length){
+    box.innerHTML = ""; // hide legend when nothing selected
+    return;
+  }
+
+  // Build one group per selected property
+  const groupsHtml = selected.map(prefix => {
+    const name = escapeHtml(displayNameForPrefix(prefix));
+    const shades = propertyShades(prefix);
+
+    return `
+      <div class="legendGroup">
+        <span class="legendTitle">${name}</span>
+        <span class="legendItem"><span class="legendSwatch" style="background:${shades.light}"></span>Equity</span>
+        <span class="legendItem"><span class="legendSwatch" style="background:${shades.medium}"></span>Mortgage</span>
+        <span class="legendItem"><span class="legendSwatch" style="background:${shades.dark}"></span>Net rent (monthly)</span>
+      </div>
+    `;
+  }).join("");
+
+  box.innerHTML = groupsHtml;
+}
 
 
 
@@ -2575,18 +2617,33 @@ const SERIES_COLORS = {
 
 // Property series get deterministic colors from their prefix
 // Property series get deterministic, high-contrast colors from their prefix
+// Deterministic, dark-theme-friendly base color per property (HSL)
 function colorForProperty(prefix){
-  // Hash → reproducible hue in [0..359]
   let h = 0;
   const s = String(prefix || "");
   for (let i=0;i<s.length;i++){ h = (h*31 + s.charCodeAt(i)) & 0xffffffff; }
   const hue = Math.abs(h) % 360;
-
-  // Dark-theme friendly saturation/lighting
   const sat = 70;   // %
   const light = 56; // %
-
   return `hsl(${hue}, ${sat}%, ${light}%)`;
+}
+
+// Lighten/darken an HSL string
+function tweakLightness(hsl, delta = 0){
+  const m = String(hsl).match(/hsl\((\d+),\s*([\d.]+)%\s*,\s*([\d.]+)%\)/i);
+  if(!m) return hsl;
+  const H = Number(m[1]), S = Number(m[2]), L = Math.max(0, Math.min(100, Number(m[3]) + delta));
+  return `hsl(${H}, ${S}%, ${L}%)`;
+}
+
+// Produce light/medium/dark shades for one property
+function propertyShades(prefix){
+  const base = colorForProperty(prefix);
+  return {
+    light:  tweakLightness(base, +10),  // Equity
+    medium: tweakLightness(base,   0),  // Mortgage
+    dark:   tweakLightness(base, -12),  // Net rent
+  };
 }
 
 // A slightly lighter/dimmer variant of a base HSL string
@@ -2684,6 +2741,7 @@ if (fireIndex >= 0) {
   // Property totals fallback using prefixes
   const propPrefixes = detectPropertyPrefixes(cols);
   renderPropertyChips(propPrefixes);
+  renderPropertyLegend(propPrefixes);
 
 
 
@@ -2856,21 +2914,57 @@ selected
       return (mode === "yearly" ? v / 12 : v);
     });
 
-    const baseColor = colorForProperty(prefix);
-    const c1 = baseColor;
-    const c2 = baseColor + "CC"; // semi‑opaque variant (browser will ignore if not valid hex)
+const shades = propertyShades(prefix);
+const cMortgage = shades.medium; // medium
+const cEquity   = shades.light;  // light
+const cRent     = shades.dark;   // dark
 
-    datasets.push(
-      { label: `${prefix} — Mortgage`, data: mortgageSeries, yAxisID:"y",
-        borderColor: c1, backgroundColor: c1, pointBackgroundColor: c1, pointBorderColor: c1,
-        borderWidth:2, tension:.25, pointRadius:(mode==="monthly"?0:2), pointHoverRadius:(mode==="monthly"?2:4) },
-      { label: `${prefix} — Equity`,   data: equitySeriesP,  yAxisID:"y",
-        borderColor: c2, backgroundColor: c2, pointBackgroundColor: c2, pointBorderColor: c2,
-        borderWidth:2, tension:.25, pointRadius:(mode==="monthly"?0:2), pointHoverRadius:(mode==="monthly"?2:4) },
-      { label: `${prefix} — Net rent (monthly)`, data: netRentSeriesP, yAxisID:"y2",
-        borderColor: c1, backgroundColor: c1, pointBackgroundColor: c1, pointBorderColor: c1,
-        borderWidth:2, tension:.25, pointRadius:(mode==="monthly"?0:2), pointHoverRadius:(mode==="monthly"?2:4) }
-    );
+datasets.push(
+  // Mortgage — medium shade
+  {
+    label: `${prefix} — Mortgage`,
+    data: mortgageSeries,
+    yAxisID: "y",
+    borderColor: cMortgage,
+    backgroundColor: cMortgage,
+    pointBackgroundColor: cMortgage,
+    pointBorderColor: cMortgage,
+    borderWidth: 2,
+    tension: .25,
+    pointRadius: (mode === "monthly" ? 0 : 2),
+    pointHoverRadius: (mode === "monthly" ? 2 : 4)
+  },
+
+  // Equity — light shade
+  {
+    label: `${prefix} — Equity`,
+    data: equitySeriesP,
+    yAxisID: "y",
+    borderColor: cEquity,
+    backgroundColor: cEquity,
+    pointBackgroundColor: cEquity,
+    pointBorderColor: cEquity,
+    borderWidth: 2,
+    tension: .25,
+    pointRadius: (mode === "monthly" ? 0 : 2),
+    pointHoverRadius: (mode === "monthly" ? 2 : 4)
+  },
+
+  // Net rent (monthly) — dark shade (right axis)
+  {
+    label: `${prefix} — Net rent (monthly)`,
+    data: netRentSeriesP,
+    yAxisID: "y2",
+    borderColor: cRent,
+    backgroundColor: cRent,
+    pointBackgroundColor: cRent,
+    pointBorderColor: cRent,
+    borderWidth: 2,
+    tension: .25,
+    pointRadius: (mode === "monthly" ? 0 : 2),
+    pointHoverRadius: (mode === "monthly" ? 2 : 4)
+  }
+);
   });
 
 
