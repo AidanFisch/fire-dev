@@ -615,6 +615,14 @@ th{
       cursor:pointer;
       user-select:none;
     }
+
+	/* Small color indicator inside chips */
+	.chip .chipDot{
+	  width: 8px; height: 8px; border-radius: 999px; display:inline-block;
+	  margin-right: 8px; vertical-align: middle; flex: 0 0 auto;
+	  box-shadow: 0 0 0 2px rgba(255,255,255,.08);
+	}
+
     .chip.active{
       color: var(--txt);
       border-color: rgba(34,211,238,.50);
@@ -1776,8 +1784,9 @@ function renderPropertyChips(propPrefixes){
     const chip = document.createElement("div");
     const isActive = state.selectedPropPrefixes.includes(prefix);
 
-    chip.className = "chip" + (isActive ? " active" : "");
-    chip.textContent = displayNameForPrefix(prefix);
+	chip.className = "chip" + (isActive ? " active" : "");
+    const color = colorForProperty(prefix);
+    chip.innerHTML = `<span class="chipDot" style="background:${color}"></span>${escapeHtml(displayNameForPrefix(prefix))}`;
 
     chip.onclick = () => {
       // toggle prefix in the selection array
@@ -2545,6 +2554,38 @@ const fireMarkerPlugin = {
 let chart = null;
 let lastMetricsRegistry = [];
 
+// === Color palette for series + chips (keep in sync with dataset ids) ===
+const SERIES_COLORS = {
+  // balances
+  netWorth:        "#22d3ee", // cyan
+  cash:            "#60a5fa", // blue
+  stocks:          "#f59e0b", // amber
+  propertyEquity:  "#34d399", // green
+  superBalance:    "#a78bfa", // violet
+
+  // cashflow
+  fireTarget:          "#f472b6", // pink
+  fireIncome:          "#38bdf8", // sky
+  fireIncomeWithCash:  "#06b6d4", // teal
+  netRent:             "#fb7185", // rose
+  withdrawals:         "#eab308", // yellow
+  taxPaid:             "#f97316", // orange
+  cashDrawdown:        "#94a3b8", // slate
+};
+
+// Property series get deterministic colors from their prefix
+function colorForProperty(prefix){
+  // Simple hash → index across a set of colors
+  const palette = ["#60a5fa","#34d399","#f59e0b","#a78bfa","#f472b6","#22d3ee","#fb7185","#06b6d4","#94a3b8"];
+  let h = 0;
+  const s = String(prefix);
+  for (let i=0;i<s.length;i++){ h = (h*31 + s.charCodeAt(i)) & 0xffffffff; }
+  const idx = Math.abs(h) % palette.length;
+  return palette[idx];
+}
+
+
+
 function renderResults(result){
   document.getElementById("rawOut").textContent = JSON.stringify(result, null, 2);
 
@@ -2762,15 +2803,22 @@ const fireIncomeWithCashSeries =
 
 const datasets = METRICS
   .filter(m => state.chartToggles[m.id])
-  .map(m => ({
-    label: m.label,
-    data: m.data,
-    yAxisID: m.axis,
-    borderWidth: 2,
-    tension: .25,
-    pointRadius: (mode === "monthly" ? 0 : 2),
-    pointHoverRadius: (mode === "monthly" ? 2 : 4)
-  }));
+  .map(m => {
+    const color = SERIES_COLORS[m.id] || "#8b5cf6"; // fallback violet
+    return {
+      label: m.label,
+      data: m.data,
+      yAxisID: m.axis,
+      borderColor: color,
+      backgroundColor: color,
+      pointBackgroundColor: color,
+      pointBorderColor: color,
+      borderWidth: 2,
+      tension: .25,
+      pointRadius: (mode === "monthly" ? 0 : 2),
+      pointHoverRadius: (mode === "monthly" ? 2 : 4)
+    };
+  });
 
   
 const selected = Array.isArray(state.selectedPropPrefixes) ? state.selectedPropPrefixes : [];
@@ -2789,9 +2837,27 @@ selected
       return Math.max(v - m, 0);
     });
     const netRentSeriesP = rows.map(r => {
-  const v = getFirstNumber(r, [netRentKeyP]);
-  return (mode === "yearly" ? v / 12 : v);
-});
+      const v = getFirstNumber(r, [netRentKeyP]);
+      return (mode === "yearly" ? v / 12 : v);
+    });
+
+    const baseColor = colorForProperty(prefix);
+    const c1 = baseColor;
+    const c2 = baseColor + "CC"; // semi‑opaque variant (browser will ignore if not valid hex)
+
+    datasets.push(
+      { label: `${prefix} — Mortgage`, data: mortgageSeries, yAxisID:"y",
+        borderColor: c1, backgroundColor: c1, pointBackgroundColor: c1, pointBorderColor: c1,
+        borderWidth:2, tension:.25, pointRadius:(mode==="monthly"?0:2), pointHoverRadius:(mode==="monthly"?2:4) },
+      { label: `${prefix} — Equity`,   data: equitySeriesP,  yAxisID:"y",
+        borderColor: c2, backgroundColor: c2, pointBackgroundColor: c2, pointBorderColor: c2,
+        borderWidth:2, tension:.25, pointRadius:(mode==="monthly"?0:2), pointHoverRadius:(mode==="monthly"?2:4) },
+      { label: `${prefix} — Net rent (monthly)`, data: netRentSeriesP, yAxisID:"y2",
+        borderColor: c1, backgroundColor: c1, pointBackgroundColor: c1, pointBorderColor: c1,
+        borderWidth:2, tension:.25, pointRadius:(mode==="monthly"?0:2), pointHoverRadius:(mode==="monthly"?2:4) }
+    );
+  });
+
 
     datasets.push(
       { label: `${prefix} — Mortgage`, data: mortgageSeries, yAxisID:"y",  borderWidth:2, tension:.25, pointRadius:(mode==="monthly"?0:2), pointHoverRadius:(mode==="monthly"?2:4) },
@@ -3020,21 +3086,24 @@ function renderChartChips(METRICS){
     return (a.order || 999) - (b.order || 999);
   });
 
-  sorted.forEach(m => {
-    const chip = document.createElement("div");
-    chip.className = "chip" + (state.chartToggles[m.id] ? " active" : "");
-    chip.textContent = m.label;
+sorted.forEach(m => {
+  const chip = document.createElement("div");
+  chip.className = "chip" + (state.chartToggles[m.id] ? " active" : "");
 
-    chip.onclick = () => {
-      state.chartToggles[m.id] = !state.chartToggles[m.id];
-      saveState();
-      if(state.lastResult) renderResults(state.lastResult);
-    };
+  const color = SERIES_COLORS[m.id] || "#8b5cf6";
+  chip.innerHTML = `<span class="chipDot" style="background:${color}"></span>${escapeHtml(m.label)}`;
 
-    if (m.group === "balances" && wrapBalances) wrapBalances.appendChild(chip);
-    else if (m.group === "cashflow" && wrapCashflow) wrapCashflow.appendChild(chip);
-    else if (fallback) fallback.appendChild(chip);
-  });
+  chip.onclick = () => {
+    state.chartToggles[m.id] = !state.chartToggles[m.id];
+    saveState();
+    if(state.lastResult) renderResults(state.lastResult);
+  };
+
+  if (m.group === "balances" && wrapBalances) wrapBalances.appendChild(chip);
+  else if (m.group === "cashflow" && wrapCashflow) wrapCashflow.appendChild(chip);
+  else if (fallback) fallback.appendChild(chip);
+});
+
 }
 
 
