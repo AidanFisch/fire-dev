@@ -1007,7 +1007,109 @@ html, body {
   background-size: 14px;
 }
 
+/* === Pretty Category Picker (replaces native <select>) === */
+.catPicker {
+  position: relative;
+  width: 100%;
+}
 
+.catPickerBtn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+  background: rgba(0,0,0,.25);
+  color: var(--txt);
+  text-align: left;
+  outline: none;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.catPickerBtn:focus {
+  border-color: rgba(139,92,246,.55);
+  box-shadow: 0 0 0 4px rgba(139,92,246,.14);
+}
+.catPickerBtn .label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.catPickerBtn .chev {
+  opacity: .7;
+  font-size: 12px;
+}
+
+.catMenu {
+  position: absolute;
+  z-index: 9999;
+  margin-top: 6px;
+  width: 420px;
+  max-width: min(420px, calc(100vw - 32px));
+  max-height: 360px;
+  overflow: auto;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(10,13,24,.98);
+  box-shadow: 0 18px 50px rgba(0,0,0,.55);
+  padding: 8px;
+  display: none;
+}
+
+.catMenu.show { display: block; }
+
+.catGroup {
+  padding: 6px 8px 4px;
+  color: rgba(255,255,255,.75);
+  font-weight: 800;
+  letter-spacing: .2px;
+  font-size: 12px;
+  text-transform: none;
+  border-top: 1px solid rgba(255,255,255,.06);
+  margin-top: 6px;
+}
+.catGroup:first-child {
+  border-top: none;
+  margin-top: 0;
+}
+
+.catItem {
+  padding: 8px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  color: rgba(255,255,255,.92);
+  font-size: 14px;
+}
+.catItem:hover, .catItem.active {
+  background: rgba(139,92,246,.18);
+  border: 1px solid rgba(139,92,246,.45);
+}
+
+.catSearch {
+  position: sticky;
+  top: 0;
+  background: rgba(10,13,24,.98);
+  padding: 6px 6px 8px;
+}
+.catSearch input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.25);
+  color: var(--txt);
+  outline: none;
+}
+.catSearch input:focus {
+  border-color: rgba(34,211,238,.55);
+  box-shadow: 0 0 0 3px rgba(34,211,238,.14);
+}
+
+/* Optional: make the category cell compact */
+#budgetExpenseTbody td:first-child .catPicker { max-width: 360px; }
 
   </style>
 </head>
@@ -4102,7 +4204,14 @@ function budgetAddExpenseRow(item){
   /* ===================
      CATEGORY (toggle UI)
      =================== */
-  const tdCat = document.createElement("td");
+  // === Category cell (use pretty picker) ===
+	const tdCat = document.createElement("td");
+	
+	// Build the picker
+	const picker = createCategoryPicker(row.category || "", (val) => {
+	  budgetSetExpense(idx, "category", val);
+	});
+	tdCat.appendChild(picker);
 
   // Wrapper to stack the control and keep layout tidy
   const catWrap = document.createElement("div");
@@ -4131,6 +4240,164 @@ function budgetAddExpenseRow(item){
       sel.appendChild(og);
     }
   }
+
+/* === Pretty Category Picker (custom dropdown) === */
+function createCategoryPicker(initialValue, onChange) {
+  const wrap = document.createElement("div");
+  wrap.className = "catPicker";
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "catPickerBtn";
+  btn.innerHTML = `<span class="label">${escapeHtml(initialValue || "Select category…")}</span><span class="chev">▾</span>`;
+
+  const menu = document.createElement("div");
+  menu.className = "catMenu";
+  menu.setAttribute("role", "listbox");
+
+  // Search bar
+  const searchBox = document.createElement("div");
+  searchBox.className = "catSearch";
+  const searchInput = document.createElement("input");
+  searchInput.placeholder = "Search categories…";
+  searchInput.autocomplete = "off";
+  searchBox.appendChild(searchInput);
+  menu.appendChild(searchBox);
+
+  // Build flat list for filtering
+  const flat = [];
+  for (const [group, items] of Object.entries(BUDGET_CATEGORY_GROUPS || {})) {
+    flat.push({ type:"group", group });
+    (items || []).forEach(label => flat.push({ type:"item", group, label }));
+  }
+
+  // Render list
+  let activeIndex = -1;
+  const listFrag = () => {
+    const q = (searchInput.value || "").toLowerCase().trim();
+    const frag = document.createDocumentFragment();
+    let idx = -1;
+
+    // group visibility based on filtered children
+    const groups = Object.keys(BUDGET_CATEGORY_GROUPS || {});
+    groups.forEach(group => {
+      const items = (BUDGET_CATEGORY_GROUPS[group] || []);
+      const filtered = q
+        ? items.filter(l => l.toLowerCase().includes(q))
+        : items.slice();
+
+      if (!filtered.length) return;
+
+      const gEl = document.createElement("div");
+      gEl.className = "catGroup";
+      gEl.textContent = group;
+      frag.appendChild(gEl);
+
+      filtered.forEach(label => {
+        idx++;
+        const it = document.createElement("div");
+        it.className = "catItem";
+        it.textContent = label;
+        it.setAttribute("role","option");
+        it.onclick = () => {
+          setValue(label);
+          hide();
+          onChange && onChange(label);
+        };
+        if (label.toLowerCase() === String(currentValue || "").toLowerCase()) {
+          it.classList.add("active");
+          activeIndex = idx;
+        }
+        frag.appendChild(it);
+      });
+    });
+
+    return { frag, total: idx + 1 };
+  };
+
+  let currentValue = initialValue || "";
+  const setValue = (v) => {
+    currentValue = v || "";
+    btn.querySelector(".label").textContent = currentValue || "Select category…";
+  };
+
+  const show = () => {
+    // position menu (simple below-button)
+    menu.classList.add("show");
+    searchInput.value = "";
+    rebuild();
+    setTimeout(() => searchInput.focus(), 0);
+    document.addEventListener("click", handleDocClick, { once: true });
+    document.addEventListener("keydown", handleKey);
+  };
+  const hide = () => {
+    menu.classList.remove("show");
+    document.removeEventListener("keydown", handleKey);
+  };
+
+  const handleDocClick = (e) => {
+    if (!wrap.contains(e.target)) hide();
+    else document.addEventListener("click", handleDocClick, { once: true });
+  };
+
+  const rebuild = () => {
+    // Remove old items (keep searchBox)
+    while (menu.childNodes.length > 1) menu.removeChild(menu.lastChild);
+    const { frag } = listFrag();
+    menu.appendChild(frag);
+    activeIndex = -1;
+  };
+
+  const handleKey = (e) => {
+    if (!menu.classList.contains("show")) return;
+
+    const items = menu.querySelectorAll(".catItem");
+    const n = items.length;
+    if (e.key === "Escape") { hide(); btn.focus(); return; }
+    if (!n) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      activeIndex = (activeIndex + 1 + n) % n;
+      items.forEach(it => it.classList.remove("active"));
+      items[activeIndex].classList.add("active");
+      items[activeIndex].scrollIntoView({ block:"nearest" });
+      return;
+    }
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      activeIndex = (activeIndex - 1 + n) % n;
+      items.forEach(it => it.classList.remove("active"));
+      items[activeIndex].classList.add("active");
+      items[activeIndex].scrollIntoView({ block:"nearest" });
+      return;
+    }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (activeIndex >= 0) {
+        const label = items[activeIndex].textContent;
+        setValue(label);
+        hide();
+        onChange && onChange(label);
+      }
+      return;
+    }
+  };
+
+  btn.onclick = (e) => {
+    e.stopPropagation();
+    if (menu.classList.contains("show")) hide(); else show();
+  };
+  searchInput.oninput = rebuild;
+
+  // initial build & value
+  rebuild();
+  setValue(currentValue);
+
+  wrap.appendChild(btn);
+  wrap.appendChild(menu);
+  return wrap;
+}
 
   // Add a "Custom…" option to switch to input
   const optCustom = document.createElement("option");
