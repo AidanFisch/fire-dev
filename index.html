@@ -4158,6 +4158,23 @@ async function budgetLoadYear(year){
   }
 }
 
+function positionCatMenu(menuEl, btnEl) {
+  const btnRect = btnEl.getBoundingClientRect();
+  // Measure after menu is visible so width is accurate
+  const menuRect = menuEl.getBoundingClientRect();
+
+  // Default: align left with button
+  let left = 0;
+
+  // If it would overflow right edge, shift it left within the picker
+  const overflowRight = (btnRect.left + menuRect.width) - window.innerWidth + 8; // 8px pad
+  if (overflowRight > 0) {
+    left = Math.max(0, btnEl.offsetWidth - menuRect.width);
+  }
+
+  menuEl.style.left = left + "px";
+}
+
 function renderBudgetYearTable(data){
   const rows = (data && data.months) ? data.months : [];
   const tbody = rows.map(row => {
@@ -4240,6 +4257,19 @@ function budgetClearExpenseRows(){
 function createCategoryPicker(initialValue, onChange) {
   const wrap = document.createElement("div");
   wrap.className = "catPicker";
+
+	const show = () => {
+  menu.classList.add("show");
+  btn.setAttribute("aria-expanded", "true");
+  searchInput.value = "";
+  rebuild();
+  setTimeout(() => {
+    searchInput.focus();
+    positionCatMenu(menu, btn);   // <-- add this line
+  }, 0);
+  document.addEventListener("click", handleDocClick, { once: true });
+  document.addEventListener("keydown", handleKey);
+};
 
   const btn = document.createElement("button");
   btn.type = "button";
