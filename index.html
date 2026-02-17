@@ -4327,18 +4327,19 @@ function budgetClearExpenseRows(){
   };
 
 const show = () => {
-    menu.classList.add("show");
-    btn.setAttribute("aria-expanded", "true");
-    searchInput.value = "";
-    rebuild();
--   setTimeout(() => searchInput.focus(), 0);
-+   setTimeout(() => {
-+     searchInput.focus();
-+     positionCatMenu(menu, btn); // keep menu within viewport
-+   }, 0);
-    document.addEventListener("click", handleDocClick, { once: true });
-    document.addEventListener("keydown", handleKey);
-  };
+  menu.classList.add("show");
+  btn.setAttribute("aria-expanded", "true");
+  searchInput.value = "";
+  rebuild();
+
+  setTimeout(() => {
+    searchInput.focus();
+    positionCatMenu(menu, btn); // keep menu within viewport
+  }, 0);
+
+  document.addEventListener("click", handleDocClick, { once: true });
+  document.addEventListener("keydown", handleKey);
+};
 	
   const hide = () => {
     menu.classList.remove("show");
