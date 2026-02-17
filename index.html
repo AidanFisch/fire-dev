@@ -1441,7 +1441,7 @@ html, body {
 
       <div class="hr"></div>
 
-      <div class="grid cols2" style="margin-top:8px;">
+      <div class="grid cols" style="margin-top:8px;">
         <div class="section">
           <div class="sectionHeader">
             <h2>Yearly overview</h2>
@@ -1472,6 +1472,8 @@ html, body {
         <div class="row" style="gap:8px;">
           <input id="budgetMonthInput" type="month" />
           <button class="btn" onclick="budgetLoadMonth()">Load</button>
+		  <button class="btn" onclick="budgetCopyLast()">Copy last month</button>
+			<button class="btn" onclick="budgetFillActualsFromPlanned()">Actuals = Planned</button>
           <button class="btn primary" onclick="budgetSave()">Save</button>
         </div>
       </div>
@@ -3839,6 +3841,46 @@ function apiBaseClean() {
 /* ======================
    Budget: Yearly overview
    ====================== */
+function budgetFillActualsFromPlanned(){
+  // Income
+  const ip = Number(document.getElementById("budgetIncomePlanned").value) || 0;
+  document.getElementById("budgetIncomeActual").value = ip;
+
+  // Expenses
+  _budgetExpenses.forEach((row, idx) => {
+    row.actual = Number(row.planned) || 0;
+
+    // Also update the input field in the DOM
+    const tbody = document.getElementById("budgetExpenseTbody");
+    const tr = tbody?.children?.[idx];
+    if(tr){
+      const actualInput = tr.querySelectorAll("input")[2]; // category, planned, actual
+      if(actualInput) actualInput.value = row.actual;
+    }
+  });
+
+  budgetUpdateMonthSummary();
+}
+
+	
+async function budgetCopyLast(){
+  const m = document.getElementById("budgetMonthInput").value;
+  if(!m){ alert("Pick a month"); return; }
+
+  // Don't overwrite existing entries without asking
+  const hasData =
+    (Number(document.getElementById("budgetIncomePlanned").value) || 0) !== 0 ||
+    _budgetExpenses.length > 0;
+
+  if(hasData){
+    const ok = confirm("This will replace the current planned values and categories with last month's. Continue?");
+    if(!ok) return;
+  }
+
+  const copied = await budgetPrefillFromPrevious(m);
+  if(!copied) alert("No previous month found to copy from.");
+}
+	
 async function budgetYearReload(){
   const y = Number(document.getElementById("budgetYearInput").value) || (new Date()).getFullYear();
   await budgetLoadYear(y);
@@ -4014,13 +4056,19 @@ async function budgetLoadMonth(){
     });
 
     budgetUpdateMonthSummary();
-  } catch(e){
-    // If month doesn't exist yet, start blank
-    budgetClearExpenseRows();
-    document.getElementById("budgetIncomePlanned").value = 0;
-    document.getElementById("budgetIncomeActual").value = "";
-    budgetUpdateMonthSummary();
-  }
+	} catch(e){
+	  // If month doesn't exist yet, try to prefill from previous month
+	  budgetClearExpenseRows();
+	  document.getElementById("budgetIncomePlanned").value = 0;
+	  document.getElementById("budgetIncomeActual").value = "";
+	
+	  const m = document.getElementById("budgetMonthInput").value;
+	  const copied = await budgetPrefillFromPrevious(m);
+	  if(!copied){
+	    // Still blank if no previous month found
+	    budgetUpdateMonthSummary();
+	  }
+	}
 }
 
 function budgetUpdateMonthSummary(){
@@ -4089,6 +4137,43 @@ async function budgetSave(){
 /* ======================
    Budget: Init
    ====================== */
+
+function prevMonth(ym){ // ym = "YYYY-MM"
+  const [y,m] = ym.split("-").map(Number);
+  const d = new Date(y, m - 2, 1); // JS month 0..11
+  const yy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return `${yy}-${mm}`;
+}
+
+// Prefill the current editor with last month's planned categories/amounts
+async function budgetPrefillFromPrevious(currentYm){
+  const base = apiBaseClean();
+  const pm = prevMonth(currentYm);
+  try{
+    const r = await fetch(`${base}/budget/month/${pm}`, { cache: "no-store" });
+    if(!r.ok) return false;
+    const prev = await r.json();
+
+    // Prefill planned income
+    document.getElementById("budgetIncomePlanned").value = prev?.income?.planned ?? 0;
+
+    // Prefill categories + planned values; leave actuals blank
+    budgetClearExpenseRows();
+    (prev?.categories || []).forEach(cat => {
+      budgetAddExpenseRow({
+        category: cat.category,
+        planned: cat.planned ?? 0,
+        actual: null
+      });
+    });
+    budgetUpdateMonthSummary();
+    return true;
+  }catch(e){
+    return false;
+  }
+}
+
 function budgetInit(){
   const y = new Date().getFullYear();
   const ym = new Date().toISOString().slice(0,7);
