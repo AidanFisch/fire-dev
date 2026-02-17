@@ -999,6 +999,7 @@ html, body {
 	  <!--<button id="btnHome" class="active" onclick="showTab('home')">Home</button> -->
 
         <button id="btnHome" style="display:none"></button>
+		<button id="btnBudget" onclick="showTab('budget')">Budget</button>
         <button id="btnInputs" onclick="showTab('inputs')">Setup</button>
         <button id="btnResults" onclick="showTab('results')">Results</button>
       </div>
@@ -1417,6 +1418,100 @@ html, body {
         <div class="hr"></div>
         <pre id="rawOut" class="mono" style="white-space:pre-wrap; background:rgba(0,0,0,.22); border:1px solid var(--stroke); padding:12px; border-radius: var(--r); max-height:320px; overflow:auto; margin:0;"></pre>
       </div>
+    </div>
+
+  </div>
+</section>
+
+<section id="tab-budget" class="tabs" style="margin-top:18px;">
+  <div class="grid cols1">
+
+    <!-- Yearly overview -->
+    <div class="card">
+      <div class="row">
+        <div>
+          <h2 style="margin-bottom:4px;">Budget</h2>
+          <div class="sub">Plan by month, track actuals, and see net savings vs plan.</div>
+        </div>
+        <div class="row" style="gap:8px;">
+          <input id="budgetYearInput" type="number" min="2000" max="3000" style="max-width:120px"/>
+          <button class="btn" onclick="budgetYearReload()">Reload year</button>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="grid cols2" style="margin-top:8px;">
+        <div class="section">
+          <div class="sectionHeader">
+            <h2>Yearly overview</h2>
+          </div>
+          <div class="sectionBody">
+            <div class="tablewrap" id="budgetYearTable"></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="sectionHeader">
+            <h2>Tracking chart</h2>
+          </div>
+          <div class="sectionBody">
+            <canvas id="budgetYearChart" height="220"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Monthly editor -->
+    <div class="card">
+      <div class="row">
+        <div>
+          <h2 style="margin-bottom:4px;">Monthly editor</h2>
+          <div class="sub">Edit one month’s planned income & expenses, record actuals.</div>
+        </div>
+        <div class="row" style="gap:8px;">
+          <input id="budgetMonthInput" type="month" />
+          <button class="btn" onclick="budgetLoadMonth()">Load</button>
+          <button class="btn primary" onclick="budgetSave()">Save</button>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="grid cols2">
+        <div>
+          <label>Income (planned)</label>
+          <input id="budgetIncomePlanned" type="number" step="1"/>
+        </div>
+        <div>
+          <label>Income (actual)</label>
+          <input id="budgetIncomeActual" type="number" step="1"/>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="row">
+        <h3 style="margin:0;">Expenses</h3>
+        <button class="btn" onclick="budgetAddExpenseRow()">+ Add category</button>
+      </div>
+
+      <div class="tablewrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Category</th>
+              <th class="right">Planned</th>
+              <th class="right">Actual</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="budgetExpenseTbody"></tbody>
+        </table>
+      </div>
+
+      <div class="hr"></div>
+      <div id="budgetMonthSummary" class="small"></div>
     </div>
 
   </div>
@@ -3731,6 +3826,279 @@ function buildTableHTML(rows, cols, {formatters = {}, rightAlign = new Set()} = 
   return `<table><thead><tr>${ths}</tr></thead><tbody>${tds}</tbody></table>`;
 }
 
+/* ======================
+   Budget: State + helpers
+   ====================== */
+let budgetChart = null;
+let _budgetExpenses = []; // [{category, planned, actual}]
+
+function apiBaseClean() {
+  return (state.apiBase || "").replace(/\/+$/, "");
+}
+
+/* ======================
+   Budget: Yearly overview
+   ====================== */
+async function budgetYearReload(){
+  const y = Number(document.getElementById("budgetYearInput").value) || (new Date()).getFullYear();
+  await budgetLoadYear(y);
+}
+
+async function budgetLoadYear(year){
+  const base = apiBaseClean();
+  try{
+    const r = await fetch(`${base}/budget/year/${year}`, { cache: "no-store" });
+    if(!r.ok) throw new Error(await r.text());
+    const data = await r.json();
+    renderBudgetYearTable(data);
+    drawBudgetYearChart(data);
+  } catch(e){
+    alert("Budget year load failed: " + e.message);
+  }
+}
+
+function renderBudgetYearTable(data){
+  const rows = (data && data.months) ? data.months : [];
+  const tbody = rows.map(row => {
+    const m  = row.month;
+    const ip = row.income_planned ?? 0;
+    const ia = row.income_actual;
+    const ep = row.expense_planned ?? 0;
+    const ea = row.expense_actual;
+    const np = row.net_planned ?? (ip - ep);
+    const na = (ia != null && ea != null) ? (ia - ea) : null;
+    return `
+      <tr>
+        <td>${m}</td>
+        <td class="right">${fmtMoney(ip)}</td>
+        <td class="right">${ia == null ? "—" : fmtMoney(ia)}</td>
+        <td class="right">${fmtMoney(ep)}</td>
+        <td class="right">${ea == null ? "—" : fmtMoney(ea)}</td>
+        <td class="right">${fmtMoney(np)}</td>
+        <td class="right">${na == null ? "—" : fmtMoney(na)}</td>
+        <td><button class="btn" onclick="budgetEditMonth('${m}')">Edit</button></td>
+      </tr>`;
+  }).join("");
+
+  const html = `
+    <table>
+      <thead>
+        <tr>
+          <th>Month</th>
+          <th class="right">Income (planned)</th>
+          <th class="right">Income (actual)</th>
+          <th class="right">Expenses (planned)</th>
+          <th class="right">Expenses (actual)</th>
+          <th class="right">Net (planned)</th>
+          <th class="right">Net (actual)</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>${tbody}</tbody>
+    </table>
+  `;
+  document.getElementById("budgetYearTable").innerHTML = html;
+}
+
+function drawBudgetYearChart(data){
+  const months = (data?.months || []).map(x => x.month);
+  const netP   = (data?.months || []).map(x => x.net_planned ?? ((x.income_planned||0) - (x.expense_planned||0)));
+  const netA   = (data?.months || []).map(x => (x.income_actual!=null && x.expense_actual!=null) ? (x.income_actual - x.expense_actual) : null);
+
+  const ctx = document.getElementById("budgetYearChart").getContext("2d");
+  if (budgetChart) { budgetChart.destroy(); budgetChart = null; }
+
+  budgetChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: months,
+      datasets: [
+        { label: "Net savings (planned)", data: netP, borderColor: "#60a5fa", backgroundColor: "#60a5fa", tension: .25, pointRadius: 2 },
+        { label: "Net savings (actual)",  data: netA, borderColor: "#10b981", backgroundColor: "#10b981", tension: .25, pointRadius: 2 }
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: "index", intersect: false },
+      plugins: { legend: { display: true } },
+      scales: { y: { ticks: { callback: v => moneyAxis(v) } } }
+    }
+  });
+}
+
+/* ======================
+   Budget: Monthly editor
+   ====================== */
+function budgetClearExpenseRows(){
+  _budgetExpenses = [];
+  const tbody = document.getElementById("budgetExpenseTbody");
+  if (tbody) tbody.innerHTML = "";
+}
+
+function budgetAddExpenseRow(item){
+  const row = item || { category: "", planned: 0, actual: null };
+  _budgetExpenses.push(row);
+  const idx = _budgetExpenses.length - 1;
+
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td>
+      <input type="text" value="${escapeHtml(row.category)}"
+        oninput="budgetSetExpense(${idx}, 'category', this.value)" />
+    </td>
+    <td class="right">
+      <input type="number" step="1" value="${row.planned ?? 0}"
+        oninput="budgetSetExpense(${idx}, 'planned', this.value)" />
+    </td>
+    <td class="right">
+      <input type="number" step="1" value="${row.actual ?? ''}"
+        oninput="budgetSetExpense(${idx}, 'actual', this.value)" />
+    </td>
+    <td class="right">
+      <button class="btn danger" onclick="budgetRemoveExpense(${idx})">Remove</button>
+    </td>
+  `;
+  document.getElementById("budgetExpenseTbody").appendChild(tr);
+  budgetUpdateMonthSummary();
+}
+
+function budgetSetExpense(idx, field, value){
+  const it = _budgetExpenses[idx];
+  if(!it) return;
+
+  if(field === "category"){
+    it.category = value;
+  } else {
+    const n = (value === "" || value === null || value === undefined) ? null : Number(value);
+    it[field] = (n === null || Number.isFinite(n)) ? n : 0;
+  }
+  budgetUpdateMonthSummary();
+}
+
+function budgetRemoveExpense(idx){
+  _budgetExpenses.splice(idx, 1);
+  const tbody = document.getElementById("budgetExpenseTbody");
+  tbody.innerHTML = "";
+  const copy = _budgetExpenses.slice();
+  _budgetExpenses = [];
+  copy.forEach(item => budgetAddExpenseRow(item));
+  budgetUpdateMonthSummary();
+}
+
+async function budgetEditMonth(m){
+  document.getElementById("budgetMonthInput").value = m;
+  await budgetLoadMonth();
+  showTab("budget");
+}
+
+async function budgetLoadMonth(){
+  const m = document.getElementById("budgetMonthInput").value;
+  if(!m){ alert("Pick a month"); return; }
+
+  const base = apiBaseClean();
+  try{
+    const r = await fetch(`${base}/budget/month/${m}`, { cache: "no-store" });
+    if(!r.ok) throw new Error(await r.text());
+    const data = await r.json();
+
+    document.getElementById("budgetIncomePlanned").value = data.income?.planned ?? 0;
+    document.getElementById("budgetIncomeActual").value  = (data.income?.actual ?? "") === null ? "" : (data.income?.actual ?? "");
+
+    budgetClearExpenseRows();
+    (data.categories || []).forEach(cat => {
+      budgetAddExpenseRow({
+        category: cat.category,
+        planned: cat.planned ?? 0,
+        actual: (cat.actual === null ? null : cat.actual)
+      });
+    });
+
+    budgetUpdateMonthSummary();
+  } catch(e){
+    // If month doesn't exist yet, start blank
+    budgetClearExpenseRows();
+    document.getElementById("budgetIncomePlanned").value = 0;
+    document.getElementById("budgetIncomeActual").value = "";
+    budgetUpdateMonthSummary();
+  }
+}
+
+function budgetUpdateMonthSummary(){
+  const ip  = Number(document.getElementById("budgetIncomePlanned").value) || 0;
+  const iaS = document.getElementById("budgetIncomeActual").value;
+  const ia  = (iaS === "" ? null : Number(iaS));
+
+  const ep = _budgetExpenses.reduce((s,x)=> s + (Number(x.planned)||0), 0);
+  const ea = _budgetExpenses.reduce((s,x)=> s + (Number(x.actual)||0), 0);
+
+  const netP = ip - ep;
+  const netA = (ia != null) ? ia - ea : null;
+
+  const el = document.getElementById("budgetMonthSummary");
+  el.innerHTML = `
+    Planned: Income ${fmtMoney(ip)} – Expenses ${fmtMoney(ep)} = <b>${fmtMoney(netP)}</b><br/>
+    ${netA == null ? "" :
+      ("Actual: Income " + fmtMoney(ia) + " – Expenses " + fmtMoney(ea) + " = <b>" + fmtMoney(netA) + "</b>")
+    }
+  `;
+}
+
+async function budgetSave(){
+  const m = document.getElementById("budgetMonthInput").value;
+  if(!m){ alert("Pick a month"); return; }
+
+  const ip  = Number(document.getElementById("budgetIncomePlanned").value) || 0;
+  const iaS = document.getElementById("budgetIncomeActual").value;
+  const ia  = (iaS === "" ? null : Number(iaS));
+
+  const expenses = _budgetExpenses
+    .filter(x => (x.category || "").trim().length)
+    .map(x => ({
+      category: x.category.trim(),
+      planned: Number(x.planned) || 0,
+      actual: (x.actual === "" || x.actual === null || x.actual === undefined) ? null : Number(x.actual)
+    }));
+
+  const payload = {
+    month: m,
+    income_planned: ip,
+    income_actual: ia,
+    expenses,
+    merge: true
+  };
+
+  const base = apiBaseClean();
+  try{
+    const r = await fetch(`${base}/budget/save_month`, {
+      method: "POST",
+      headers: { "Content-Type":"application/json" },
+      body: JSON.stringify(payload)
+    });
+    const j = await r.json().catch(()=> ({}));
+    if(!r.ok) throw new Error(j?.detail || JSON.stringify(j));
+
+    const y = Number(m.slice(0,4));
+    await budgetLoadYear(y);
+    if (typeof showToast === "function") showToast("Saved", `Saved ${m}`);
+    else alert(`Saved ${m}`);
+  } catch(e){
+    alert("Save failed: " + e.message);
+  }
+}
+
+/* ======================
+   Budget: Init
+   ====================== */
+function budgetInit(){
+  const y = new Date().getFullYear();
+  const ym = new Date().toISOString().slice(0,7);
+  const yearEl = document.getElementById("budgetYearInput");
+  const monthEl = document.getElementById("budgetMonthInput");
+  if (yearEl) yearEl.value = y;
+  if (monthEl) monthEl.value = ym;
+  budgetLoadYear(y);
+}
+
 /** ---------------------------
  *  Init
  *  --------------------------*/
@@ -3739,6 +4107,7 @@ window.addEventListener("load", ()=>{
   bindCoreInputs();
   hydrateUI();
   initLanding();
+  budgetInit();
 });
 
 /* ====== RESULTS sub-tabs ====== */
