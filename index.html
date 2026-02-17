@@ -1655,10 +1655,24 @@ html, body {
         <div>
           <label>Income (planned)</label>
           <input id="budgetIncomePlanned" type="number" step="1"/>
+			
+      <select id="budgetIncomePlannedFreq" style="max-width:130px">
+        <option value="month">per month</option>
+        <option value="fortnight">per fortnight</option>
+        <option value="week">per week</option>
+      </select>
+
         </div>
         <div>
           <label>Income (actual)</label>
           <input id="budgetIncomeActual" type="number" step="1"/>
+			
+      <select id="budgetIncomeActualFreq" style="max-width:130px">
+        <option value="month">per month</option>
+        <option value="fortnight">per fortnight</option>
+        <option value="week">per week</option>
+      </select>
+
         </div>
       </div>
 
@@ -4118,23 +4132,44 @@ function parseCategoryLabel(label){
   // Fallback: if flat category existed previously
   return { group: "", category: s.trim() };
 }
+
+function freqToMonthlyFactor(freq){
+  switch ((freq || "month").toLowerCase()){
+    case "week": return 52/12;
+    case "fortnight": return 26/12;
+    default: return 1; // month
+  }
+}
+function toMonthlyAmount(value, freq){
+  return (Number(value) || 0) * freqToMonthlyFactor(freq);
+}
 	
 function budgetFillActualsFromPlanned(){
   // Income
-  const ip = Number(document.getElementById("budgetIncomePlanned").value) || 0;
+  const ip  = Number(document.getElementById("budgetIncomePlanned").value) || 0;
+  const ipf = (document.getElementById("budgetIncomePlannedFreq")?.value || "month");
   document.getElementById("budgetIncomeActual").value = ip;
+  const iaFreqEl = document.getElementById("budgetIncomeActualFreq");
+  if (iaFreqEl) iaFreqEl.value = ipf;
 
-  // Expenses
+  // Expenses (copy amount + freq into UI + row model)
   _budgetExpenses.forEach((row, idx) => {
     row.actual = Number(row.planned) || 0;
+    row.actualFreq = row.plannedFreq || "month";
 
-    // Also update the input field in the DOM
+    // Update the DOM inputs/selects of this row
     const tbody = document.getElementById("budgetExpenseTbody");
     const tr = tbody?.children?.[idx];
-    if(tr){
-      const actualInput = tr.querySelectorAll("input")[2]; // category, planned, actual
-      if(actualInput) actualInput.value = row.actual;
-    }
+    if (!tr) return;
+
+    // Inputs: [plannedInput, actualInput] (since we add selects beside each)
+    const inputs = tr.querySelectorAll("input");
+    // Selects: [plannedFreqSelect, actualFreqSelect]
+    const selects = tr.querySelectorAll("select");
+
+    // If your structure differs, adjust indices accordingly.
+    if (inputs[1]) inputs[1].value = row.actual == null ? "" : String(row.actual);
+    if (selects[1]) selects[1].value = row.actualFreq || "month";
   });
 
   budgetUpdateMonthSummary();
@@ -4488,7 +4523,12 @@ function budgetAddExpenseRow(item){
     group: parsed.group || "",
     category: parsed.category || "",
     planned: Number(parsed.planned) || 0,
-    actual: (parsed.actual === null || parsed.actual === undefined || parsed.actual === "") ? null : Number(parsed.actual)
+    
+	 plannedFreq: (parsed.plannedFreq || "month"),
+	 actual: (parsed.actual === null || parsed.actual === undefined || parsed.actual === "") ? null : Number(parsed.actual),
+	 actualFreq: (parsed.actualFreq || "month")
+	};
+
   };
 
   _budgetExpenses.push(row);
@@ -4550,6 +4590,18 @@ function budgetAddExpenseRow(item){
   inpPlanned.oninput = (e) => { row.planned = Number(e.target.value) || 0; budgetUpdateMonthSummary(); };
   tdPlanned.appendChild(inpPlanned);
 
+	
+const selPlannedFreq = document.createElement("select");
+selPlannedFreq.innerHTML = `
+  <option value="month">/month</option>
+  <option value="fortnight">/fortnight</option>
+  <option value="week">/week</option>`;
+selPlannedFreq.style.marginLeft = "8px";
+selPlannedFreq.value = row.plannedFreq || "month";
+selPlannedFreq.onchange = () => { row.plannedFreq = selPlannedFreq.value || "month"; budgetUpdateMonthSummary(); };
+tdPlanned.appendChild(selPlannedFreq);
+
+
   // ACTUAL
   const tdActual = document.createElement("td");
   tdActual.className = "right";
@@ -4559,6 +4611,17 @@ function budgetAddExpenseRow(item){
   inpActual.value = row.actual == null ? "" : String(row.actual);
   inpActual.oninput = (e) => { row.actual = (e.target.value === "" ? null : (Number(e.target.value)||0)); budgetUpdateMonthSummary(); };
   tdActual.appendChild(inpActual);
+
+	const selActualFreq = document.createElement("select");
+	selActualFreq.innerHTML = `
+	  <option value="month">/month</option>
+	  <option value="fortnight">/fortnight</option>
+	  <option value="week">/week</option>`;
+	selActualFreq.style.marginLeft = "8px";
+	selActualFreq.value = row.actualFreq || "month";
+	selActualFreq.onchange = () => { row.actualFreq = selActualFreq.value || "month"; budgetUpdateMonthSummary(); };
+	tdActual.appendChild(selActualFreq);
+
 
   // REMOVE
   const tdRemove = document.createElement("td");
@@ -4604,17 +4667,28 @@ async function budgetLoadMonth(){
 
     document.getElementById("budgetIncomePlanned").value = data.income?.planned ?? 0;
     document.getElementById("budgetIncomeActual").value  = (data.income?.actual ?? "") === null ? "" : (data.income?.actual ?? "");
+	  document.getElementById("budgetIncomePlannedFreq").value = data.income?.planned_freq || "month";
+	document.getElementById("budgetIncomeActualFreq").value  = data.income?.actual_freq  || "month";
+
+
+	  
+	// Fallback: existing API had no freq; default to month
+	document.getElementById("budgetIncomePlannedFreq").value = data.income?.planned_freq || "month";
+	document.getElementById("budgetIncomeActualFreq").value  = data.income?.actual_freq  || "month";
+
 
     budgetClearExpenseRows();
 
 	  (data.categories || []).forEach(cat => {
 	    const { group, category } = parseCategoryLabel(cat.category);
-	    budgetAddExpenseRow({
-	      group,
-	      category,
-	      planned: cat.planned ?? 0,
-	      actual: (cat.actual === null ? null : cat.actual)
-	    });
+		budgetAddExpenseRow({
+		  group,
+		  category,
+		  planned: cat.planned ?? 0,
+		  actual:  (cat.actual === null ? null : cat.actual),
+		  plannedFreq: cat.planned_freq || "month",
+		  actualFreq:  cat.actual_freq  || "month"
+		});
 	  });
 
 
@@ -4633,23 +4707,51 @@ async function budgetLoadMonth(){
 	  }
 	}
 }
+	
+function freqToMonthlyFactor(freq){
+  switch ((freq || "month").toLowerCase()){
+    case "week":      return 52/12;      // ≈4.3333
+    case "fortnight": return 26/12;      // ≈2.1667
+    default:          return 1;          // month
+  }
+}
+function toMonthlyAmount(value, freq){
+  return (Number(value) || 0) * freqToMonthlyFactor(freq);
+}
 
 function budgetUpdateMonthSummary(){
   const ip  = Number(document.getElementById("budgetIncomePlanned").value) || 0;
   const iaS = document.getElementById("budgetIncomeActual").value;
   const ia  = (iaS === "" ? null : Number(iaS));
 
-  const ep = _budgetExpenses.reduce((s,x)=> s + (Number(x.planned)||0), 0);
-  const ea = _budgetExpenses.reduce((s,x)=> s + (Number(x.actual)||0), 0);
+  const ipf = (document.getElementById("budgetIncomePlannedFreq")?.value || "month");
+  const iaf = (document.getElementById("budgetIncomeActualFreq")?.value  || "month");
 
-  const netP = ip - ep;
-  const netA = (ia != null) ? ia - ea : null;
+  // Normalize all expenses to monthly by each row's frequency
+  const ep = _budgetExpenses.reduce((s,x)=> {
+    const amt = Number(x.planned)||0;
+    const f   = x.plannedFreq || "month";
+    return s + toMonthlyAmount(amt, f);
+  }, 0);
+
+  const ea = _budgetExpenses.reduce((s,x)=> {
+    if (x.actual == null) return s;
+    const amt = Number(x.actual)||0;
+    const f   = x.actualFreq || "month";
+    return s + toMonthlyAmount(amt, f);
+  }, 0);
+
+  const ipMonthly = toMonthlyAmount(ip, ipf);
+  const iaMonthly = (ia == null ? null : toMonthlyAmount(ia, iaf));
+
+  const netP = ipMonthly - ep;
+  const netA = (iaMonthly == null ? null : (iaMonthly - ea));
 
   const el = document.getElementById("budgetMonthSummary");
   el.innerHTML = `
-    Planned: Income ${fmtMoney(ip)} – Expenses ${fmtMoney(ep)} = <b>${fmtMoney(netP)}</b><br/>
+    Planned: Income ${fmtMoney(ipMonthly)} – Expenses ${fmtMoney(ep)} = <b>${fmtMoney(netP)}</b><br/>
     ${netA == null ? "" :
-      ("Actual: Income " + fmtMoney(ia) + " – Expenses " + fmtMoney(ea) + " = <b>" + fmtMoney(netA) + "</b>")
+      ("Actual: Income " + fmtMoney(iaMonthly) + " – Expenses " + fmtMoney(ea) + " = <b>" + fmtMoney(netA) + "</b>")
     }
   `;
 }
@@ -4662,20 +4764,24 @@ async function budgetSave(){
   const iaS = document.getElementById("budgetIncomeActual").value;
   const ia  = (iaS === "" ? null : Number(iaS));
 
+  const ipf = (document.getElementById("budgetIncomePlannedFreq")?.value || "month");
+  const iaf = (document.getElementById("budgetIncomeActualFreq")?.value  || "month");
 
- const expenses = _budgetExpenses
-    .filter(x => ((x.group && x.category) || x.category || x.group)) // at least one chosen
+  // Join the two-level category back into "Group — Sub"
+  const expenses = _budgetExpenses
+    .filter(x => ((x.group && x.category) || x.category || x.group))
     .map(x => ({
-      category: formatCategory(x.group, x.category), // <-- "Group — Sub"
-      planned: Number(x.planned) || 0,
-      actual: (x.actual === "" || x.actual === null || x.actual === undefined) ? null : Number(x.actual)
+      category: formatCategory(x.group, x.category),
+      planned: toMonthlyAmount(Number(x.planned)||0, x.plannedFreq || "month"),
+      actual:  (x.actual === "" || x.actual === null || x.actual === undefined)
+                ? null
+                : toMonthlyAmount(Number(x.actual)||0, x.actualFreq || "month")
     }));
-
 
   const payload = {
     month: m,
-    income_planned: ip,
-    income_actual: ia,
+    income_planned: toMonthlyAmount(ip, ipf),
+    income_actual:  (ia == null ? null : toMonthlyAmount(ia, iaf)),
     expenses,
     merge: true
   };
@@ -4722,18 +4828,23 @@ async function budgetPrefillFromPrevious(currentYm){
 
     // Prefill planned income
     document.getElementById("budgetIncomePlanned").value = prev?.income?.planned ?? 0;
+	document.getElementById("budgetIncomePlannedFreq").value = prev?.income?.planned_freq || "month";
 
     // Prefill categories + planned values; leave actuals blank
     budgetClearExpenseRows();
     
 	  (prev?.categories || []).forEach(cat => {
 	   const { group, category } = parseCategoryLabel(cat.category);
-	   budgetAddExpenseRow({
-	      group,
-	     category,
-	     planned: cat.planned ?? 0,
-	      actual: null
-	    });
+
+		budgetAddExpenseRow({
+		  group: parsed.group,
+		  category: parsed.category,
+		  planned: cat.planned ?? 0,
+		  actual: null,
+		  plannedFreq: cat.planned_freq || "month",
+		  actualFreq: "month"
+		});
+		  
 	  });
 
     budgetUpdateMonthSummary();
