@@ -4261,23 +4261,6 @@ function budgetClearExpenseRows(){
   if (tbody) tbody.innerHTML = "";
 }
 
-// === Pretty Category Picker (reusable) ===
-function createCategoryPicker(initialValue, onChange) {
-  const wrap = document.createElement("div");
-  wrap.className = "catPicker";
-
-	const show = () => {
-  menu.classList.add("show");
-  btn.setAttribute("aria-expanded", "true");
-  searchInput.value = "";
-  rebuild();
-  setTimeout(() => {
-    searchInput.focus();
-    positionCatMenu(menu, btn);   // <-- add this line
-  }, 0);
-  document.addEventListener("click", handleDocClick, { once: true });
-  document.addEventListener("keydown", handleKey);
-};
 
   const btn = document.createElement("button");
   btn.type = "button";
@@ -4343,15 +4326,20 @@ function createCategoryPicker(initialValue, onChange) {
     if (e.key === "Escape") { hide(); btn.focus(); }
   };
 
-  const show = () => {
+const show = () => {
     menu.classList.add("show");
     btn.setAttribute("aria-expanded", "true");
     searchInput.value = "";
     rebuild();
-    setTimeout(() => searchInput.focus(), 0);
+-   setTimeout(() => searchInput.focus(), 0);
++   setTimeout(() => {
++     searchInput.focus();
++     positionCatMenu(menu, btn); // keep menu within viewport
++   }, 0);
     document.addEventListener("click", handleDocClick, { once: true });
     document.addEventListener("keydown", handleKey);
   };
+	
   const hide = () => {
     menu.classList.remove("show");
     btn.setAttribute("aria-expanded", "false");
