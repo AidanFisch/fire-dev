@@ -4193,55 +4193,7 @@ function budgetClearExpenseRows(){
   if (tbody) tbody.innerHTML = "";
 }
 
-function budgetAddExpenseRow(item){
-  const row = item || { category: "", planned: 0, actual: null };
-  _budgetExpenses.push(row);
-  const idx = _budgetExpenses.length - 1;
-
-  const tbody = document.getElementById("budgetExpenseTbody");
-  const tr = document.createElement("tr");
-
-  /* ===================
-     CATEGORY (toggle UI)
-     =================== */
-  // === Category cell (use pretty picker) ===
-	const tdCat = document.createElement("td");
-	
-	// Build the picker
-	const picker = createCategoryPicker(row.category || "", (val) => {
-	  budgetSetExpense(idx, "category", val);
-	});
-	tdCat.appendChild(picker);
-
-  // Wrapper to stack the control and keep layout tidy
-  const catWrap = document.createElement("div");
-  catWrap.style.display = "flex";
-  catWrap.style.flexDirection = "column";
-  catWrap.style.gap = "6px";
-
-  // --- Dropdown (grouped) ---
-  const sel = document.createElement("select");
-  const optDefault = document.createElement("option");
-  optDefault.value = "";
-  optDefault.textContent = "Select category…";
-  sel.appendChild(optDefault);
-
-  // Build optgroups
-  if (BUDGET_CATEGORY_GROUPS && typeof BUDGET_CATEGORY_GROUPS === "object") {
-    for (const [group, items] of Object.entries(BUDGET_CATEGORY_GROUPS)) {
-      const og = document.createElement("optgroup");
-      og.label = group;
-      (items || []).forEach(itemName => {
-        const opt = document.createElement("option");
-        opt.value = itemName;
-        opt.textContent = itemName;
-        og.appendChild(opt);
-      });
-      sel.appendChild(og);
-    }
-  }
-
-/* === Pretty Category Picker (custom dropdown) === */
+// === Pretty Category Picker (reusable) ===
 function createCategoryPicker(initialValue, onChange) {
   const wrap = document.createElement("div");
   wrap.className = "catPicker";
@@ -4249,11 +4201,14 @@ function createCategoryPicker(initialValue, onChange) {
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "catPickerBtn";
+  btn.setAttribute("aria-haspopup", "listbox");
+  btn.setAttribute("aria-expanded", "false");
   btn.innerHTML = `<span class="label">${escapeHtml(initialValue || "Select category…")}</span><span class="chev">▾</span>`;
 
   const menu = document.createElement("div");
   menu.className = "catMenu";
   menu.setAttribute("role", "listbox");
+  menu.setAttribute("tabindex", "-1");
 
   // Search bar
   const searchBox = document.createElement("div");
@@ -4264,37 +4219,20 @@ function createCategoryPicker(initialValue, onChange) {
   searchBox.appendChild(searchInput);
   menu.appendChild(searchBox);
 
-  // Build flat list for filtering
-  const flat = [];
-  for (const [group, items] of Object.entries(BUDGET_CATEGORY_GROUPS || {})) {
-    flat.push({ type:"group", group });
-    (items || []).forEach(label => flat.push({ type:"item", group, label }));
-  }
-
-  // Render list
-  let activeIndex = -1;
-  const listFrag = () => {
-    const q = (searchInput.value || "").toLowerCase().trim();
-    const frag = document.createDocumentFragment();
-    let idx = -1;
-
-    // group visibility based on filtered children
-    const groups = Object.keys(BUDGET_CATEGORY_GROUPS || {});
-    groups.forEach(group => {
-      const items = (BUDGET_CATEGORY_GROUPS[group] || []);
-      const filtered = q
-        ? items.filter(l => l.toLowerCase().includes(q))
-        : items.slice();
-
-      if (!filtered.length) return;
+  const rebuild = () => {
+    // keep search box (child 0)
+    while (menu.childNodes.length > 1) menu.removeChild(menu.lastChild);
+    for (const [group, items] of Object.entries(BUDGET_CATEGORY_GROUPS || {})) {
+      const q = (searchInput.value || "").toLowerCase().trim();
+      const filtered = q ? (items || []).filter(l => l.toLowerCase().includes(q)) : (items || []);
+      if (!filtered.length) continue;
 
       const gEl = document.createElement("div");
       gEl.className = "catGroup";
       gEl.textContent = group;
-      frag.appendChild(gEl);
+      menu.appendChild(gEl);
 
       filtered.forEach(label => {
-        idx++;
         const it = document.createElement("div");
         it.className = "catItem";
         it.textContent = label;
@@ -4304,15 +4242,9 @@ function createCategoryPicker(initialValue, onChange) {
           hide();
           onChange && onChange(label);
         };
-        if (label.toLowerCase() === String(currentValue || "").toLowerCase()) {
-          it.classList.add("active");
-          activeIndex = idx;
-        }
-        frag.appendChild(it);
+        menu.appendChild(it);
       });
-    });
-
-    return { frag, total: idx + 1 };
+    }
   };
 
   let currentValue = initialValue || "";
@@ -4321,9 +4253,18 @@ function createCategoryPicker(initialValue, onChange) {
     btn.querySelector(".label").textContent = currentValue || "Select category…";
   };
 
+  const handleDocClick = (e) => {
+    if (!wrap.contains(e.target)) hide();
+    else document.addEventListener("click", handleDocClick, { once: true });
+  };
+
+  const handleKey = (e) => {
+    if (e.key === "Escape") { hide(); btn.focus(); }
+  };
+
   const show = () => {
-    // position menu (simple below-button)
     menu.classList.add("show");
+    btn.setAttribute("aria-expanded", "true");
     searchInput.value = "";
     rebuild();
     setTimeout(() => searchInput.focus(), 0);
@@ -4332,56 +4273,8 @@ function createCategoryPicker(initialValue, onChange) {
   };
   const hide = () => {
     menu.classList.remove("show");
+    btn.setAttribute("aria-expanded", "false");
     document.removeEventListener("keydown", handleKey);
-  };
-
-  const handleDocClick = (e) => {
-    if (!wrap.contains(e.target)) hide();
-    else document.addEventListener("click", handleDocClick, { once: true });
-  };
-
-  const rebuild = () => {
-    // Remove old items (keep searchBox)
-    while (menu.childNodes.length > 1) menu.removeChild(menu.lastChild);
-    const { frag } = listFrag();
-    menu.appendChild(frag);
-    activeIndex = -1;
-  };
-
-  const handleKey = (e) => {
-    if (!menu.classList.contains("show")) return;
-
-    const items = menu.querySelectorAll(".catItem");
-    const n = items.length;
-    if (e.key === "Escape") { hide(); btn.focus(); return; }
-    if (!n) return;
-
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      activeIndex = (activeIndex + 1 + n) % n;
-      items.forEach(it => it.classList.remove("active"));
-      items[activeIndex].classList.add("active");
-      items[activeIndex].scrollIntoView({ block:"nearest" });
-      return;
-    }
-    if (e.key === "ArrowUp") {
-      e.preventDefault();
-      activeIndex = (activeIndex - 1 + n) % n;
-      items.forEach(it => it.classList.remove("active"));
-      items[activeIndex].classList.add("active");
-      items[activeIndex].scrollIntoView({ block:"nearest" });
-      return;
-    }
-    if (e.key === "Enter") {
-      e.preventDefault();
-      if (activeIndex >= 0) {
-        const label = items[activeIndex].textContent;
-        setValue(label);
-        hide();
-        onChange && onChange(label);
-      }
-      return;
-    }
   };
 
   btn.onclick = (e) => {
@@ -4390,7 +4283,7 @@ function createCategoryPicker(initialValue, onChange) {
   };
   searchInput.oninput = rebuild;
 
-  // initial build & value
+  // init
   rebuild();
   setValue(currentValue);
 
@@ -4399,88 +4292,22 @@ function createCategoryPicker(initialValue, onChange) {
   return wrap;
 }
 
-  // Add a "Custom…" option to switch to input
-  const optCustom = document.createElement("option");
-  optCustom.value = "__custom__";
-  optCustom.textContent = "Custom…";
-  sel.appendChild(optCustom);
+function budgetAddExpenseRow(item){
+  const row = item || { category: "", planned: 0, actual: null };
+  _budgetExpenses.push(row);
+  const idx = _budgetExpenses.length - 1;
 
-  // --- Text input (hidden by default) ---
-  const inpCat = document.createElement("input");
-  inpCat.type = "text";
-  inpCat.placeholder = "Type custom category…";
-  inpCat.style.display = "none";
+  const tbody = document.getElementById("budgetExpenseTbody");
+  const tr = document.createElement("tr");
 
-  // Helpers
-  const isKnownCategory = (val) => {
-    if (!val) return false;
-    const v = String(val).toLowerCase();
-    for (const items of Object.values(BUDGET_CATEGORY_GROUPS || {})) {
-      if ((items || []).some(x => String(x).toLowerCase() === v)) return true;
-    }
-    return false;
-  };
+  /* CATEGORY: pretty picker only */
+  const tdCat = document.createElement("td");
+  const picker = createCategoryPicker(row.category || "", (val) => {
+    budgetSetExpense(idx, "category", val);
+  });
+  tdCat.appendChild(picker);
 
-  const showSelect = () => { sel.style.display = ""; inpCat.style.display = "none"; };
-  const showInput  = () => { sel.style.display = "none"; inpCat.style.display = ""; inpCat.focus(); };
-
-  // Events
-  sel.onchange = (e) => {
-    const v = e.target.value;
-    if (v === "__custom__") {
-      // Switch to custom input (keep current typed value if any)
-      const current = _budgetExpenses[idx]?.category || "";
-      inpCat.value = current && !isKnownCategory(current) ? current : "";
-      showInput();
-    } else {
-      budgetSetExpense(idx, "category", v || "");
-    }
-  };
-
-  inpCat.oninput = (e) => {
-    const v = e.target.value || "";
-    budgetSetExpense(idx, "category", v);
-    // If typed value matches a known option, snap back to dropdown
-    if (isKnownCategory(v)) {
-      sel.value = "";
-      // Select exact match
-      const options = sel.querySelectorAll("option");
-      for (const o of options) {
-        if (o.value && o.value.toLowerCase() === v.toLowerCase()) {
-          sel.value = o.value;
-          break;
-        }
-      }
-      showSelect();
-    }
-  };
-
-  // Initial state: if category is known -> select it; else open custom input
-  if (row.category && isKnownCategory(row.category)) {
-    // select the matching option
-    const options = sel.querySelectorAll("option");
-    for (const o of options) {
-      if (o.value && o.value.toLowerCase() === String(row.category).toLowerCase()) {
-        sel.value = o.value;
-        break;
-      }
-    }
-    showSelect();
-  } else if (row.category) {
-    inpCat.value = row.category;
-    showInput();
-  } else {
-    // No category yet -> start with dropdown
-    showSelect();
-  }
-
-  catWrap.appendChild(sel);
-  catWrap.appendChild(inpCat);
-  tdCat.appendChild(catWrap);
-
-  /* ===================
-     PLANNED
-     =================== */
+  /* PLANNED */
   const tdPlanned = document.createElement("td");
   tdPlanned.className = "right";
   const inpPlanned = document.createElement("input");
@@ -4490,9 +4317,7 @@ function createCategoryPicker(initialValue, onChange) {
   inpPlanned.oninput = (e) => budgetSetExpense(idx, "planned", e.target.value);
   tdPlanned.appendChild(inpPlanned);
 
-  /* ===================
-     ACTUAL
-     =================== */
+  /* ACTUAL */
   const tdActual = document.createElement("td");
   tdActual.className = "right";
   const inpActual = document.createElement("input");
@@ -4502,9 +4327,7 @@ function createCategoryPicker(initialValue, onChange) {
   inpActual.oninput = (e) => budgetSetExpense(idx, "actual", e.target.value);
   tdActual.appendChild(inpActual);
 
-  /* ===================
-     REMOVE
-     =================== */
+  /* REMOVE */
   const tdRemove = document.createElement("td");
   tdRemove.className = "right";
   const btnRemove = document.createElement("button");
@@ -4516,19 +4339,6 @@ function createCategoryPicker(initialValue, onChange) {
   tr.append(tdCat, tdPlanned, tdActual, tdRemove);
   tbody.appendChild(tr);
 
-  budgetUpdateMonthSummary();
-}
-
-function budgetSetExpense(idx, field, value){
-  const it = _budgetExpenses[idx];
-  if(!it) return;
-
-  if(field === "category"){
-    it.category = value;
-  } else {
-    const n = (value === "" || value === null || value === undefined) ? null : Number(value);
-    it[field] = (n === null || Number.isFinite(n)) ? n : 0;
-  }
   budgetUpdateMonthSummary();
 }
 
