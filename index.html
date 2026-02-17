@@ -3824,6 +3824,89 @@ function buildTableHTML(rows, cols, {formatters = {}, rightAlign = new Set()} = 
 /* ======================
    Budget: State + helpers
    ====================== */
+
+/* ======================
+   Budget: Category Groups
+   ====================== */
+
+const BUDGET_CATEGORY_GROUPS = {
+  "Housing": [
+    "Rent / Mortgage",
+    "Home insurance",
+    "Rates",
+    "Strata",
+    "Water",
+    "Electricity",
+    "Gas",
+    "Internet",
+    "Repairs & maintenance"
+  ],
+
+  "Transport": [
+    "Fuel",
+    "Registration",
+    "Car insurance",
+    "Car repayment",
+    "Car servicing",
+    "Tolls",
+    "Public transport",
+    "Uber / Taxi"
+  ],
+
+  "Food & Groceries": [
+    "Groceries",
+    "Takeaway",
+    "Restaurants",
+    "Coffee",
+    "Meal delivery"
+  ],
+
+  "Health": [
+    "Health insurance",
+    "Medical",
+    "Dental",
+    "Pharmacy",
+    "Gym membership",
+    "Sports / recreation"
+  ],
+
+  "Children": [
+    "Childcare",
+    "School fees",
+    "Kids activities",
+    "Kids clothing",
+    "School supplies"
+  ],
+
+  "Lifestyle": [
+    "Entertainment",
+    "Clothing",
+    "Gifts",
+    "Hobbies",
+    "Pets",
+    "Alcohol",
+    "Haircuts & grooming",
+    "Subscriptions"
+  ],
+
+  "Investments": [
+    "Investment contributions",
+    "Extra mortgage repayments",
+    "Stock purchases",
+    "ETF purchases",
+    "Super contributions",
+    "Crypto purchases"
+  ],
+
+  "Financial": [
+    "Savings",
+    "Credit card repayment",
+    "Loan repayment",
+    "Bank fees",
+    "Donations"
+  ]
+};
+	
 let budgetChart = null;
 let _budgetExpenses = []; // [{category, planned, actual}]
 
@@ -3983,25 +4066,107 @@ function budgetAddExpenseRow(item){
   _budgetExpenses.push(row);
   const idx = _budgetExpenses.length - 1;
 
+  const tbody = document.getElementById("budgetExpenseTbody");
   const tr = document.createElement("tr");
-  tr.innerHTML = `
-    <td>
-      <input type="text" value="${escapeHtml(row.category)}"
-        oninput="budgetSetExpense(${idx}, 'category', this.value)" />
-    </td>
-    <td class="right">
-      <input type="number" step="1" value="${row.planned ?? 0}"
-        oninput="budgetSetExpense(${idx}, 'planned', this.value)" />
-    </td>
-    <td class="right">
-      <input type="number" step="1" value="${row.actual ?? ''}"
-        oninput="budgetSetExpense(${idx}, 'actual', this.value)" />
-    </td>
-    <td class="right">
-      <button class="btn danger" onclick="budgetRemoveExpense(${idx})">Remove</button>
-    </td>
-  `;
-  document.getElementById("budgetExpenseTbody").appendChild(tr);
+
+  // === Category cell ===
+  const tdCat = document.createElement("td");
+
+  // Dropdown (grouped categories)
+  const sel = document.createElement("select");
+  const optDefault = document.createElement("option");
+  optDefault.value = "";
+  optDefault.textContent = "Select category…";
+  sel.appendChild(optDefault);
+
+  // Build optgroups from BUDGET_CATEGORY_GROUPS
+  if (typeof BUDGET_CATEGORY_GROUPS === "object" && BUDGET_CATEGORY_GROUPS) {
+    for (const [group, items] of Object.entries(BUDGET_CATEGORY_GROUPS)) {
+      const og = document.createElement("optgroup");
+      og.label = group;
+      (items || []).forEach(itemName => {
+        const opt = document.createElement("option");
+        opt.value = itemName;
+        opt.textContent = itemName;
+        og.appendChild(opt);
+      });
+      sel.appendChild(og);
+    }
+  }
+
+  sel.onchange = (e) => budgetSetExpense(idx, "category", e.target.value);
+
+  // Category text input (allows custom)
+  const inpCat = document.createElement("input");
+  inpCat.type = "text";
+  inpCat.placeholder = "Or type custom…";
+  inpCat.style.marginTop = "6px";
+  inpCat.value = row.category || "";
+  inpCat.oninput = (e) => {
+    const v = e.target.value || "";
+    budgetSetExpense(idx, "category", v);
+
+    // Keep dropdown in sync: if typed text matches any known option, select it; else clear selection
+    const options = sel.querySelectorAll("option");
+    let matched = false;
+    for (const o of options) {
+      if (o.value && o.value.toLowerCase() === v.toLowerCase()) {
+        sel.value = o.value;
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) sel.value = "";
+  };
+
+  // Preselect dropdown if current category matches a known one
+  if (row.category) {
+    const options = sel.querySelectorAll("option");
+    for (const o of options) {
+      if (o.value && o.value.toLowerCase() === String(row.category).toLowerCase()) {
+        sel.value = o.value;
+        break;
+      }
+    }
+  }
+
+  tdCat.appendChild(sel);
+  tdCat.appendChild(inpCat);
+
+  // === Planned cell ===
+  const tdPlanned = document.createElement("td");
+  tdPlanned.className = "right";
+  const inpPlanned = document.createElement("input");
+  inpPlanned.type = "number";
+  inpPlanned.step = "1";
+  inpPlanned.value = (row.planned ?? 0).toString();
+  inpPlanned.oninput = (e) => budgetSetExpense(idx, "planned", e.target.value);
+  tdPlanned.appendChild(inpPlanned);
+
+  // === Actual cell ===
+  const tdActual = document.createElement("td");
+  tdActual.className = "right";
+  const inpActual = document.createElement("input");
+  inpActual.type = "number";
+  inpActual.step = "1";
+  // if null, use empty string to show blank
+  inpActual.value = row.actual == null ? "" : String(row.actual);
+  inpActual.oninput = (e) => budgetSetExpense(idx, "actual", e.target.value);
+  tdActual.appendChild(inpActual);
+
+  // === Remove cell ===
+  const tdRemove = document.createElement("td");
+  tdRemove.className = "right";
+  const btnRemove = document.createElement("button");
+  btnRemove.className = "btn danger";
+  btnRemove.textContent = "Remove";
+  btnRemove.onclick = () => budgetRemoveExpense(idx);
+  tdRemove.appendChild(btnRemove);
+
+  // Assemble row
+  tr.append(tdCat, tdPlanned, tdActual, tdRemove);
+  tbody.appendChild(tr);
+
   budgetUpdateMonthSummary();
 }
 
