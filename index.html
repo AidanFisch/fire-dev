@@ -1266,7 +1266,7 @@ html, body {
 
     <!-- HOME -->
  <!-- HOME -->
-	<section id="tab-home" class="tabs active" style="margin-top:18px;">
+	<section id="tab-home" class="tabs" style="margin-top:18px;">
 	  <div class="grid cols1">
 
 		<!-- What this does (FULL WIDTH) -->
@@ -2171,16 +2171,24 @@ function loadState(){
  *  Tab navigation
  *  --------------------------*/
 function showTab(name){
+  // Hide all tabs
   document.querySelectorAll(".tabs").forEach(el => el.classList.remove("active"));
+  // De-activate all nav buttons (top nav + any subtabs)
   document.querySelectorAll(".nav button").forEach(el => el.classList.remove("active"));
 
+  // Show the requested tab, if it exists
   const tabEl = document.getElementById(`tab-${name}`);
   if (tabEl) tabEl.classList.add("active");
 
+  // Activate the matching nav button, if it exists
   const btnId = `btn${name.charAt(0).toUpperCase()+name.slice(1)}`;
   const btnEl = document.getElementById(btnId);
   if (btnEl) btnEl.classList.add("active");
 }
+
+// ✅ expose for inline onclick handlers
+window.showTab = showTab;
+
 
 function enterApp(){
   document.body.classList.remove("landing");
