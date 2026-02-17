@@ -4069,18 +4069,26 @@ function budgetAddExpenseRow(item){
   const tbody = document.getElementById("budgetExpenseTbody");
   const tr = document.createElement("tr");
 
-  // === Category cell ===
+  /* ===================
+     CATEGORY (toggle UI)
+     =================== */
   const tdCat = document.createElement("td");
 
-  // Dropdown (grouped categories)
+  // Wrapper to stack the control and keep layout tidy
+  const catWrap = document.createElement("div");
+  catWrap.style.display = "flex";
+  catWrap.style.flexDirection = "column";
+  catWrap.style.gap = "6px";
+
+  // --- Dropdown (grouped) ---
   const sel = document.createElement("select");
   const optDefault = document.createElement("option");
   optDefault.value = "";
   optDefault.textContent = "Select category…";
   sel.appendChild(optDefault);
 
-  // Build optgroups from BUDGET_CATEGORY_GROUPS
-  if (typeof BUDGET_CATEGORY_GROUPS === "object" && BUDGET_CATEGORY_GROUPS) {
+  // Build optgroups
+  if (BUDGET_CATEGORY_GROUPS && typeof BUDGET_CATEGORY_GROUPS === "object") {
     for (const [group, items] of Object.entries(BUDGET_CATEGORY_GROUPS)) {
       const og = document.createElement("optgroup");
       og.label = group;
@@ -4094,33 +4102,65 @@ function budgetAddExpenseRow(item){
     }
   }
 
-  sel.onchange = (e) => budgetSetExpense(idx, "category", e.target.value);
+  // Add a "Custom…" option to switch to input
+  const optCustom = document.createElement("option");
+  optCustom.value = "__custom__";
+  optCustom.textContent = "Custom…";
+  sel.appendChild(optCustom);
 
-  // Category text input (allows custom)
+  // --- Text input (hidden by default) ---
   const inpCat = document.createElement("input");
   inpCat.type = "text";
-  inpCat.placeholder = "Or type custom…";
-  inpCat.style.marginTop = "6px";
-  inpCat.value = row.category || "";
+  inpCat.placeholder = "Type custom category…";
+  inpCat.style.display = "none";
+
+  // Helpers
+  const isKnownCategory = (val) => {
+    if (!val) return false;
+    const v = String(val).toLowerCase();
+    for (const items of Object.values(BUDGET_CATEGORY_GROUPS || {})) {
+      if ((items || []).some(x => String(x).toLowerCase() === v)) return true;
+    }
+    return false;
+  };
+
+  const showSelect = () => { sel.style.display = ""; inpCat.style.display = "none"; };
+  const showInput  = () => { sel.style.display = "none"; inpCat.style.display = ""; inpCat.focus(); };
+
+  // Events
+  sel.onchange = (e) => {
+    const v = e.target.value;
+    if (v === "__custom__") {
+      // Switch to custom input (keep current typed value if any)
+      const current = _budgetExpenses[idx]?.category || "";
+      inpCat.value = current && !isKnownCategory(current) ? current : "";
+      showInput();
+    } else {
+      budgetSetExpense(idx, "category", v || "");
+    }
+  };
+
   inpCat.oninput = (e) => {
     const v = e.target.value || "";
     budgetSetExpense(idx, "category", v);
-
-    // Keep dropdown in sync: if typed text matches any known option, select it; else clear selection
-    const options = sel.querySelectorAll("option");
-    let matched = false;
-    for (const o of options) {
-      if (o.value && o.value.toLowerCase() === v.toLowerCase()) {
-        sel.value = o.value;
-        matched = true;
-        break;
+    // If typed value matches a known option, snap back to dropdown
+    if (isKnownCategory(v)) {
+      sel.value = "";
+      // Select exact match
+      const options = sel.querySelectorAll("option");
+      for (const o of options) {
+        if (o.value && o.value.toLowerCase() === v.toLowerCase()) {
+          sel.value = o.value;
+          break;
+        }
       }
+      showSelect();
     }
-    if (!matched) sel.value = "";
   };
 
-  // Preselect dropdown if current category matches a known one
-  if (row.category) {
+  // Initial state: if category is known -> select it; else open custom input
+  if (row.category && isKnownCategory(row.category)) {
+    // select the matching option
     const options = sel.querySelectorAll("option");
     for (const o of options) {
       if (o.value && o.value.toLowerCase() === String(row.category).toLowerCase()) {
@@ -4128,12 +4168,22 @@ function budgetAddExpenseRow(item){
         break;
       }
     }
+    showSelect();
+  } else if (row.category) {
+    inpCat.value = row.category;
+    showInput();
+  } else {
+    // No category yet -> start with dropdown
+    showSelect();
   }
 
-  tdCat.appendChild(sel);
-  tdCat.appendChild(inpCat);
+  catWrap.appendChild(sel);
+  catWrap.appendChild(inpCat);
+  tdCat.appendChild(catWrap);
 
-  // === Planned cell ===
+  /* ===================
+     PLANNED
+     =================== */
   const tdPlanned = document.createElement("td");
   tdPlanned.className = "right";
   const inpPlanned = document.createElement("input");
@@ -4143,18 +4193,21 @@ function budgetAddExpenseRow(item){
   inpPlanned.oninput = (e) => budgetSetExpense(idx, "planned", e.target.value);
   tdPlanned.appendChild(inpPlanned);
 
-  // === Actual cell ===
+  /* ===================
+     ACTUAL
+     =================== */
   const tdActual = document.createElement("td");
   tdActual.className = "right";
   const inpActual = document.createElement("input");
   inpActual.type = "number";
   inpActual.step = "1";
-  // if null, use empty string to show blank
   inpActual.value = row.actual == null ? "" : String(row.actual);
   inpActual.oninput = (e) => budgetSetExpense(idx, "actual", e.target.value);
   tdActual.appendChild(inpActual);
 
-  // === Remove cell ===
+  /* ===================
+     REMOVE
+     =================== */
   const tdRemove = document.createElement("td");
   tdRemove.className = "right";
   const btnRemove = document.createElement("button");
@@ -4163,7 +4216,6 @@ function budgetAddExpenseRow(item){
   btnRemove.onclick = () => budgetRemoveExpense(idx);
   tdRemove.appendChild(btnRemove);
 
-  // Assemble row
   tr.append(tdCat, tdPlanned, tdActual, tdRemove);
   tbody.appendChild(tr);
 
