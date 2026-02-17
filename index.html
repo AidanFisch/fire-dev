@@ -3874,7 +3874,6 @@ async function budgetCopyLast(){
   if(!copied) alert("No previous month found to copy from.");
 }
 	
-<script>
 async function budgetYearReload(){
   const el = document.getElementById("budgetYearInput");
   const raw = el?.value;
@@ -3883,11 +3882,10 @@ async function budgetYearReload(){
   // Coerce to a reasonable year range
   if (!Number.isFinite(y) || y < 1900 || y > 3000) {
     y = new Date().getFullYear();
-    if (el) el.value = y; // keep the UI consistent
+    if (el) el.value = y; // normalize UI
   }
   await budgetLoadYear(y);
 }
-</script>
 
 async function budgetLoadYear(year){
   const base = apiBaseClean();
