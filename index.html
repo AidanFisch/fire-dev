@@ -2135,8 +2135,13 @@ function loadState(){
 function showTab(name){
   document.querySelectorAll(".tabs").forEach(el => el.classList.remove("active"));
   document.querySelectorAll(".nav button").forEach(el => el.classList.remove("active"));
-  document.getElementById(`tab-${name}`).classList.add("active");
-  document.getElementById(`btn${name.charAt(0).toUpperCase()+name.slice(1)}`).classList.add("active");
+
+  const tabEl = document.getElementById(`tab-${name}`);
+  if (tabEl) tabEl.classList.add("active");
+
+  const btnId = `btn${name.charAt(0).toUpperCase()+name.slice(1)}`;
+  const btnEl = document.getElementById(btnId);
+  if (btnEl) btnEl.classList.add("active");
 }
 
 function enterApp(){
