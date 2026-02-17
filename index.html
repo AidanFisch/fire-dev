@@ -1441,7 +1441,7 @@ html, body {
 
       <div class="hr"></div>
 
-      <div class="grid cols" style="margin-top:8px;">
+      <div class="grid cols1" style="margin-top:8px;">
         <div class="section">
           <div class="sectionHeader">
             <h2>Yearly overview</h2>
@@ -2744,14 +2744,6 @@ function propertyShades(prefix){
   };
 }
 
-// A slightly lighter/dimmer variant of a base HSL string
-function tweakLightness(hsl, delta = -10){
-  // Expect "hsl(H, S%, L%)"
-  const m = String(hsl).match(/hsl\((\d+),\s*([\d.]+)%\s*,\s*([\d.]+)%\)/i);
-  if(!m) return hsl;
-  const H = Number(m[1]), S = Number(m[2]), L = Math.max(0, Math.min(100, Number(m[3]) + delta));
-  return `hsl(${H}, ${S}%, ${L}%)`;
-}
 
 
 
@@ -3882,10 +3874,20 @@ async function budgetCopyLast(){
   if(!copied) alert("No previous month found to copy from.");
 }
 	
+<script>
 async function budgetYearReload(){
-  const y = Number(document.getElementById("budgetYearInput").value) || (new Date()).getFullYear();
+  const el = document.getElementById("budgetYearInput");
+  const raw = el?.value;
+  let y = parseInt(raw, 10);
+
+  // Coerce to a reasonable year range
+  if (!Number.isFinite(y) || y < 1900 || y > 3000) {
+    y = new Date().getFullYear();
+    if (el) el.value = y; // keep the UI consistent
+  }
   await budgetLoadYear(y);
 }
+</script>
 
 async function budgetLoadYear(year){
   const base = apiBaseClean();
