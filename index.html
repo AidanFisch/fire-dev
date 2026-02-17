@@ -1433,12 +1433,10 @@ html, body {
           <h2 style="margin-bottom:4px;">Budget</h2>
           <div class="sub">Plan by month, track actuals, and see net savings vs plan.</div>
         </div>
-        <div class="row" style="gap:8px;">
-          <input id="budgetYearInput" type="number" min="2000" max="3000" style="max-width:120px"
-			       oninput="budgetYearReload()"
-			       onchange="budgetYearReload()" />
-          <button class="btn" onclick="budgetYearReload()">Reload year</button>
-        </div>
+			<div class="row" style="gap:8px;">
+			  <input id="budgetYearInput" type="number" min="2000" max="3000" style="max-width:120px"
+			         oninput="budgetYearReload()" onchange="budgetYearReload()" />
+			</div>
       </div>
 
       <div class="hr"></div>
@@ -1475,7 +1473,6 @@ html, body {
           <input id="budgetMonthInput" type="month"
 		       oninput="budgetLoadMonth()" 
 		       onchange="budgetLoadMonth()" />
-          <button class="btn" onclick="budgetLoadMonth()">Load</button>
 		  <button class="btn" onclick="budgetCopyLast()">Copy last month</button>
 			<button class="btn" onclick="budgetFillActualsFromPlanned()">Actuals = Planned</button>
           <button class="btn primary" onclick="budgetSave()">Save</button>
