@@ -1111,6 +1111,44 @@ html, body {
 /* Optional: make the category cell compact */
 #budgetExpenseTbody td:first-child .catPicker { max-width: 360px; }
 
+	  /* === Budget category dropdown overlay fix === */
+
+/* Let the table wrapper/tbody allow overlays */
+#tab-budget .tablewrap {
+  position: relative;
+  overflow: visible !important;   /* don't clip the dropdown */
+  z-index: 0;                     /* create a stacking context */
+}
+
+#tab-budget table {
+  overflow: visible !important;
+}
+
+#tab-budget tbody,
+#budgetExpenseTbody {
+  overflow: visible !important;
+}
+
+/* Make the picker and its menu sit above the table content */
+.catPicker { position: relative; z-index: 1; }
+
+/* Ensure the menu floats over the row (not expanding it) */
+.catMenu {
+  position: absolute;             /* already in your CSS, restating */
+  top: 100%;                      /* sit right under the button */
+  left: 0;
+  margin-top: 6px;                /* keep your existing spacing */
+  z-index: 99999;                 /* punch through table/tbody */
+  /* Optional smoothness */
+  will-change: transform;
+}
+
+/* If the surrounding Budget card still clips (rare), unclip it */
+#tab-budget .card {
+  overflow: visible;              /* only needed if you still see clipping */
+}
+
+
   </style>
 </head>
 
