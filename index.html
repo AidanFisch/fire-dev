@@ -4261,6 +4261,10 @@ function budgetClearExpenseRows(){
   if (tbody) tbody.innerHTML = "";
 }
 
+// === Pretty Category Picker (reusable) ===
+function createCategoryPicker(initialValue, onChange) {
+  const wrap = document.createElement("div");
+  wrap.className = "catPicker";
 
   const btn = document.createElement("button");
   btn.type = "button";
@@ -4283,8 +4287,8 @@ function budgetClearExpenseRows(){
   searchBox.appendChild(searchInput);
   menu.appendChild(searchBox);
 
+  // Build menu items
   const rebuild = () => {
-    // keep search box (child 0)
     while (menu.childNodes.length > 1) menu.removeChild(menu.lastChild);
     for (const [group, items] of Object.entries(BUDGET_CATEGORY_GROUPS || {})) {
       const q = (searchInput.value || "").toLowerCase().trim();
@@ -4326,21 +4330,19 @@ function budgetClearExpenseRows(){
     if (e.key === "Escape") { hide(); btn.focus(); }
   };
 
-const show = () => {
-  menu.classList.add("show");
-  btn.setAttribute("aria-expanded", "true");
-  searchInput.value = "";
-  rebuild();
+  const show = () => {
+    menu.classList.add("show");
+    btn.setAttribute("aria-expanded", "true");
+    searchInput.value = "";
+    rebuild();
+    setTimeout(() => {
+      searchInput.focus();
+      positionCatMenu(menu, btn); // keep menu within viewport
+    }, 0);
+    document.addEventListener("click", handleDocClick, { once: true });
+    document.addEventListener("keydown", handleKey);
+  };
 
-  setTimeout(() => {
-    searchInput.focus();
-    positionCatMenu(menu, btn); // keep menu within viewport
-  }, 0);
-
-  document.addEventListener("click", handleDocClick, { once: true });
-  document.addEventListener("keydown", handleKey);
-};
-	
   const hide = () => {
     menu.classList.remove("show");
     btn.setAttribute("aria-expanded", "false");
