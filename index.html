@@ -1597,113 +1597,116 @@ html, body {
   <div class="grid cols1">
 
     <!-- Monthly editor (moved to top) -->
-<div class="card">
-  <div class="row">
-    <div>
-      <h2 style="margin-bottom:4px;">Monthly editor</h2>
-      <div class="sub">Edit one month’s planned income & expenses, record actuals.</div>
-    </div>
-    <div class="row" style="gap:8px;">
-      <input id="budgetMonthInput" type="month"
-             oninput="budgetLoadMonth()" 
-             onchange="budgetLoadMonth()" />
-      <button class="btn" onclick="budgetCopyLast()">Copy last month</button>
-      <button class="btn" onclick="budgetFillActualsFromPlanned()">Actuals = Planned</button>
-      <button class="btn primary" onclick="budgetSave()">Save</button>
-    </div>
-  </div>
+    <div class="card">
+      <div class="row">
+        <div>
+          <h2 style="margin-bottom:4px;">Monthly editor</h2>
+          <div class="sub">Edit one month’s planned income & expenses, record actuals.</div>
+        </div>
+        <div class="row" style="gap:8px;">
+          <input id="budgetMonthInput" type="month"
+                 oninput="budgetLoadMonth()" 
+                 onchange="budgetLoadMonth()" />
+          <button class="btn" onclick="budgetCopyLast()">Copy last month</button>
+          <button class="btn" onclick="budgetFillActualsFromPlanned()">Actuals = Planned</button>
+          <button class="btn primary" onclick="budgetSave()">Save</button>
+        </div>
+      </div>
 
-  <div class="hr"></div>
+      <div class="hr"></div>
 
-  <!-- Income planned/actual with frequency selects (your recent additions) -->
-  <div class="grid cols2">
-    <div>
-      <label>Income (planned)</label>
-      <div style="display:flex; gap:8px; align-items:center;">
-        <input id="budgetIncomePlanned" type="number" step="1"/>
-        <select id="budgetIncomePlannedFreq" style="max-width:130px">
-          <option value="month">per month</option>
-          <option value="fortnight">per fortnight</option>
-          <option value="week">per week</option>
-        </select>
+      <!-- Income planned/actual with frequency selects -->
+      <div class="grid cols2">
+        <div>
+          <label>Income (planned)</label>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <input id="budgetIncomePlanned" type="number" step="1"/>
+            <select id="budgetIncomePlannedFreq" style="max-width:130px">
+              <option value="month">per month</option>
+              <option value="fortnight">per fortnight</option>
+              <option value="week">per week</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label>Income (actual)</label>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <input id="budgetIncomeActual" type="number" step="1"/>
+            <select id="budgetIncomeActualFreq" style="max-width:130px">
+              <option value="month">per month</option>
+              <option value="fortnight">per fortnight</option>
+              <option value="week">per week</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="row">
+        <h3 style="margin:0;">Expenses</h3>
+        <button class="btn" onclick="budgetAddExpenseRow()">+ Add category</button>
+      </div>
+
+      <div class="tablewrap">
+        <table>
+          <thead>
+            <tr>
+              <th>GROUP / CATEGORY</th>
+              <th class="right">PLANNED</th>
+              <th class="right">ACTUAL</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="budgetExpenseTbody"></tbody>
+        </table>
+      </div>
+
+      <div class="hr"></div>
+      <div id="budgetMonthSummary" class="small"></div>
+    </div>
+
+    <!-- Year view card now shows chart first, then table -->
+    <div class="card">
+      <div class="row">
+        <div>
+          <h2 style="margin-bottom:4px;">Budget</h2>
+          <div class="sub">Plan by month, track actuals, and see net savings vs plan.</div>
+        </div>
+        <div class="row" style="gap:8px;">
+          <input id="budgetYearInput" type="number" min="2000" max="3000" style="max-width:120px"
+                 oninput="budgetYearReload()" onchange="budgetYearReload()" />
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="grid cols1" style="margin-top:8px;">
+
+        <!-- Tracking chart moved above -->
+        <div class="section">
+          <div class="sectionHeader">
+            <h2>Tracking chart</h2>
+          </div>
+          <div class="sectionBody">
+            <canvas id="budgetYearChart" height="220"></canvas>
+          </div>
+        </div>
+
+        <!-- Yearly overview table now below the chart -->
+        <div class="section">
+          <div class="sectionHeader">
+            <h2>Yearly overview</h2>
+          </div>
+          <div class="sectionBody">
+            <div class="tablewrap" id="budgetYearTable"></div>
+          </div>
+        </div>
+
       </div>
     </div>
-    <div>
-      <label>Income (actual)</label>
-      <div style="display:flex; gap:8px; align-items:center;">
-        <input id="budgetIncomeActual" type="number" step="1"/>
-        <select id="budgetIncomeActualFreq" style="max-width:130px">
-          <option value="month">per month</option>
-          <option value="fortnight">per fortnight</option>
-          <option value="week">per week</option>
-        </select>
-      </div>
-    </div>
-  </div>
 
-  <div class="hr"></div>
-
-  <div class="row">
-    <h3 style="margin:0;">Expenses</h3>
-    <button class="btn" onclick="budgetAddExpenseRow()">+ Add category</button>
-  </div>
-
-  <div class="tablewrap">
-    <table>
-      <thead>
-        <tr>
-          <th>GROUP / CATEGORY</th>
-          <th class="right">PLANNED</th>
-          <th class="right">ACTUAL</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody id="budgetExpenseTbody"></tbody>
-    </table>
-  </div>
-
-  <div class="hr"></div>
-  <div id="budgetMonthSummary" class="small"></div>
-</div>
-
-<!-- Year view card now shows chart first, then table -->
-<div class="card">
-  <div class="row">
-    <div>
-      <h2 style="margin-bottom:4px;">Budget</h2>
-      <div class="sub">Plan by month, track actuals, and see net savings vs plan.</div>
-    </div>
-    <div class="row" style="gap:8px;">
-      <input id="budgetYearInput" type="number" min="2000" max="3000" style="max-width:120px"
-             oninput="budgetYearReload()" onchange="budgetYearReload()" />
-    </div>
-  </div>
-
-  <div class="hr"></div>
-
-  <div class="grid cols1" style="margin-top:8px;">
-    <!-- Tracking chart moved above -->
-    <div class="section">
-      <div class="sectionHeader">
-        <h2>Tracking chart</h2>
-      </div>
-      <div class="sectionBody">
-        <canvas id="budgetYearChart" height="220"></canvas>
-      </div>
-    </div>
-
-    <!-- Yearly overview table now below the chart -->
-    <div class="section">
-      <div class="sectionHeader">
-        <h2>Yearly overview</h2>
-      </div>
-      <div class="sectionBody">
-        <div class="tablewrap" id="budgetYearTable"></div>
-      </div>
-    </div>
-  </div>
-</div>
-
+  </div> <!-- ✅ close .grid.cols1 -->
 </section>
 
 </div><!-- /.wrap -->
