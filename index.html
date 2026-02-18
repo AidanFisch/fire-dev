@@ -4215,6 +4215,11 @@ function formatCategory(group, cat){
   return g || c || "";
 }
 
+function promptOther(label = "Enter a custom value"){
+  const v = (window.prompt(label, "") || "").trim();
+  return v || null;
+}
+
 function parseCategoryLabel(label){
   // Split "Group — Sub" into { group, category }
   const s = String(label || "");
@@ -4408,7 +4413,11 @@ function budgetClearExpenseRows(){
   if (tbody) tbody.innerHTML = "";
 }
 
-function createFlatPicker(items, initialValue, onChange) {
+function createFlatPicker(items, initialValue, onChange, {
+  allowOther = false,
+  otherLabel = "Other…",
+  placeholder = "Select…"
+} = {}) {
   const wrap = document.createElement("div");
   wrap.className = "catPicker";
 
@@ -4417,7 +4426,7 @@ function createFlatPicker(items, initialValue, onChange) {
   btn.className = "catPickerBtn";
   btn.setAttribute("aria-haspopup", "listbox");
   btn.setAttribute("aria-expanded", "false");
-  btn.innerHTML = `<span class="label">${escapeHtml(initialValue || "Select…")}</span><span class="chev">▾</span>`;
+  btn.innerHTML = `<span class="label">${escapeHtml(initialValue || placeholder)}</span><span class="chev">▾</span>`;
 
   const menu = document.createElement("div");
   menu.className = "catMenu";
@@ -4432,8 +4441,47 @@ function createFlatPicker(items, initialValue, onChange) {
   searchBox.appendChild(searchInput);
   menu.appendChild(searchBox);
 
-  function rebuild() {
+  function setValue(v){
+    btn.querySelector(".label").textContent = v || placeholder;
+  }
+
+  function onDocClick(e){
+    if (!wrap.contains(e.target)) hide();
+    else document.addEventListener("click", onDocClick, { once: true });
+  }
+
+  function onKey(e){
+    if (e.key === "Escape"){ hide(); btn.focus(); }
+  }
+
+  function show(){
+    menu.classList.add("show");
+    btn.setAttribute("aria-expanded", "true");
+    searchInput.value = "";
+    rebuild();
+    setTimeout(() => {
+      searchInput.focus();
+      // keep within viewport (you already have this helper)
+      positionCatMenu(menu, btn);
+    }, 0);
+    document.addEventListener("click", onDocClick, { once: true });
+    document.addEventListener("keydown", onKey);
+  }
+
+  function hide(){
+    menu.classList.remove("show");
+    btn.setAttribute("aria-expanded", "false");
+    document.removeEventListener("keydown", onKey);
+  }
+
+  function promptOther(label = "Enter a custom value"){
+    const v = (window.prompt(label, "") || "").trim();
+    return v || null;
+  }
+
+  function rebuild(){
     while (menu.childNodes.length > 1) menu.removeChild(menu.lastChild);
+
     const q = (searchInput.value || "").toLowerCase().trim();
     (items || [])
       .filter(x => !q || String(x).toLowerCase().includes(q))
@@ -4449,40 +4497,28 @@ function createFlatPicker(items, initialValue, onChange) {
         };
         menu.appendChild(it);
       });
-  }
 
-  let currentValue = initialValue || "";
-  const setValue = (v) => {
-    currentValue = v || "";
-    btn.querySelector(".label").textContent = currentValue || "Select…";
-  };
+    if (allowOther) {
+      // separator
+      const sep = document.createElement("div");
+      sep.style.borderTop = "1px solid rgba(255,255,255,.06)";
+      sep.style.margin = "6px 0 0 0";
+      menu.appendChild(sep);
 
-  const handleDocClick = (e) => {
-    if (!wrap.contains(e.target)) hide();
-    else document.addEventListener("click", handleDocClick, { once: true });
-  };
-
-  const handleKey = (e) => {
-    if (e.key === "Escape") { hide(); btn.focus(); }
-  };
-
-  function show() {
-    menu.classList.add("show");
-    btn.setAttribute("aria-expanded", "true");
-    searchInput.value = "";
-    rebuild();
-    setTimeout(() => {
-      searchInput.focus();
-      positionCatMenu(menu, btn);
-    }, 0);
-    document.addEventListener("click", handleDocClick, { once: true });
-    document.addEventListener("keydown", handleKey);
-  }
-
-  function hide() {
-    menu.classList.remove("show");
-    btn.setAttribute("aria-expanded", "false");
-    document.removeEventListener("keydown", handleKey);
+      const other = document.createElement("div");
+      other.className = "catItem";
+      other.textContent = otherLabel;
+      other.setAttribute("role", "option");
+      other.onclick = () => {
+        const custom = promptOther("Enter a custom value");
+        if (custom){
+          setValue(custom);
+          hide();
+          onChange && onChange(custom);
+        }
+      };
+      menu.appendChild(other);
+    }
   }
 
   btn.onclick = (e) => {
@@ -4493,7 +4529,7 @@ function createFlatPicker(items, initialValue, onChange) {
 
   // init
   rebuild();
-  setValue(currentValue);
+  setValue(initialValue || "");
 
   wrap.appendChild(btn);
   wrap.appendChild(menu);
@@ -4645,19 +4681,36 @@ function budgetAddExpenseRow(item){
 
   // Build the group picker (from BUDGET_CATEGORY_GROUPS keys)
   const groups = Object.keys(BUDGET_CATEGORY_GROUPS || []).sort();
+	if (!groups.includes("Other")) groups.push("Other");
   const groupPicker = createFlatPicker(groups, row.group || "", (newGroup) => {
     // Update row, reset subcategory, rebuild the sub picker
     row.group = newGroup || "";
     row.category = "";
     // Rebuild sub picker in place
-    subWrap.innerHTML = "";
-    const items = (BUDGET_CATEGORY_GROUPS[row.group] || []).slice().sort();
-    const subPicker2 = createFlatPicker(items, row.category || "", (newItem) => {
-      row.category = newItem || "";
-      budgetUpdateMonthSummary();
-    });
-    subWrap.appendChild(subPicker2);
-    budgetUpdateMonthSummary();
+	subWrap.innerHTML = "";
+	
+	// If group == "Other", show text input instead of picker
+	if (row.group === "Other") {
+	  const inp = document.createElement("input");
+	  inp.type = "text";
+	  inp.placeholder = "Type category…";
+	  inp.value = row.category || "";
+	  inp.oninput = (e) => {
+	    row.category = e.target.value.trim();
+	    budgetUpdateMonthSummary();
+	  };
+	  subWrap.appendChild(inp);
+	} else {
+	  // Otherwise use the normal picker
+	  const items = (BUDGET_CATEGORY_GROUPS[row.group] || []).slice().sort();
+	  const subPicker2 = createFlatPicker(items, row.category || "", (newItem) => {
+	    row.category = newItem || "";
+	    budgetUpdateMonthSummary();
+	  });
+	  subWrap.appendChild(subPicker2);
+	}
+	
+	budgetUpdateMonthSummary();
   });
 
   // Build the subcategory picker for the selected group
