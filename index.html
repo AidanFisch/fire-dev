@@ -1686,12 +1686,18 @@ html, body {
           <div class="sub">Edit one month’s planned income & expenses, record actuals.</div>
         </div>
         <div class="row" style="gap:8px;">
-          <input id="budgetMonthInput" type="month"
-                 oninput="budgetLoadMonth()" 
-                 onchange="budgetLoadMonth()" />
-          <button class="btn" onclick="budgetCopyLast()">Copy last month</button>
-          <button class="btn" onclick="budgetFillActualsFromPlanned()">Actuals = Planned</button>
-          <button class="btn primary" onclick="budgetSave()">Save</button>
+			<div class="row" style="gap:8px;">
+			  <button class="btn icon" id="btnMonthPrev" aria-label="Previous month">‹</button>
+			
+			  <input id="budgetMonthInput" type="month"
+			         oninput="budgetLoadMonth()" onchange="budgetLoadMonth()" />
+			
+			  <button class="btn icon" id="btnMonthNext" aria-label="Next month">›</button>
+			
+			  <button class="btn" onclick="budgetCopyLast()">Copy last month</button>
+			  <button class="btn" onclick="budgetFillActualsFromPlanned()">Actuals = Planned</button>
+			  <button class="btn primary" onclick="budgetSave()">Save</button>
+			</div>
         </div>
       </div>
 
@@ -1761,10 +1767,7 @@ html, body {
 		            onclick="showBudgetChart('year')">Year</button>
 		    <button id="btnBudgetMonth" role="tab" aria-selected="false"
 		            onclick="showBudgetChart('month')">Month</button>
-		  </div>
-		  <input id="budgetYearInput" type="number" min="2000" max="3000" style="max-width:120px"
-		         oninput="budgetYearReload()" onchange="budgetYearReload()" />
-		</div>
+
       </div>
 
       <div class="hr"></div>
@@ -1986,7 +1989,37 @@ window.addEventListener("load", () => {
     setStoredTheme(next);
   };
   updateThemeToggleLabel();
-});
+
+
+	
+/* ---------- Month prev/next controls (new) ---------- */
+  const monthEl = document.getElementById("budgetMonthInput");
+  const prevBtn = document.getElementById("btnMonthPrev"); // add <button id="btnMonthPrev">‹</button> in HTML
+  const nextBtn = document.getElementById("btnMonthNext"); // add <button id="btnMonthNext">›</button> in HTML
+  const currentYm = () => (monthEl?.value || new Date().toISOString().slice(0, 7));
+
+  if (prevBtn && monthEl) {
+    prevBtn.onclick = () => {
+      monthEl.value = prevMonth(currentYm());
+      budgetLoadMonth();                 // reload editor + month chart
+    };
+  }
+  if (nextBtn && monthEl) {
+    nextBtn.onclick = () => {
+      monthEl.value = nextMonth(currentYm());
+      budgetLoadMonth();                 // reload editor + month chart
+    };
+  }
+
+  /* ---------- Keep Year/Month chart toggle working (no year textbox) ---------- */
+  const btnYear  = document.getElementById("btnBudgetYear");
+  const btnMonth = document.getElementById("btnBudgetMonth");
+  if (btnYear)  btnYear.onclick  = () => showBudgetChart('year');
+  if (btnMonth) btnMonth.onclick = () => showBudgetChart('month');
+
+  // Nothing else needs the #budgetYearInput now, so no wiring for 
+	
+	});
 
 
 let toastTimer = null;
@@ -5174,6 +5207,13 @@ async function budgetSave(){
 /* ======================
    Budget: Init
    ====================== */
+function nextMonth(ym){ // ym = "YYYY-MM"
+  const [y,m] = ym.split("-").map(Number);
+  const d = new Date(y, m, 1); // move one month forward
+  const yy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return `${yy}-${mm}`;
+}
 
 function prevMonth(ym){ // ym = "YYYY-MM"
   const [y,m] = ym.split("-").map(Number);
