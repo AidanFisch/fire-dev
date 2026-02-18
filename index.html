@@ -4326,14 +4326,46 @@ async function budgetLoadYear(year){
 }
 
 function positionCatMenu(menuEl, btnEl) {
+  if (!menuEl || !btnEl) return;
+
+  // Force the correct positioning mode in case CSS caching bit us.
+  menuEl.style.position = 'fixed';
+
+  // Clear any stale anchors from a previous open.
+  menuEl.style.left = 'auto';
+  menuEl.style.right = 'auto';
+  menuEl.style.top = 'auto';
+  menuEl.style.bottom = 'auto';
+
   const r = btnEl.getBoundingClientRect();
-  const menuWidth = Math.min(420, window.innerWidth - 32); // keep your CSS limit
-  // Default: left align to button; clamp in viewport with 8px padding
-  let left = Math.max(8, Math.min(r.left, window.innerWidth - menuWidth - 8));
-  let top  = r.bottom + 6; // 6px gap under the button
-  menuEl.style.width = menuWidth + "px";
-  menuEl.style.left  = left + "px";
-  menuEl.style.top   = top  + "px";
+
+  // Menu target size (mirror your CSS)
+  const maxW = Math.min(420, window.innerWidth - 32);
+  const maxH = Math.min(360, window.innerHeight - 32);
+  menuEl.style.width = maxW + 'px';
+
+  // Preferred: below the button, left-aligned
+  let left = Math.round(Math.max(8, Math.min(r.left, window.innerWidth - maxW - 8)));
+  let top  = Math.round(r.bottom + 6);
+
+  // If it would overflow the bottom, flip above the button (when possible).
+  const wouldOverflowBottom = (top + maxH) > (window.innerHeight - 8);
+  const canFlip = (r.top - 6 - maxH) >= 8;
+  if (wouldOverflowBottom && canFlip) {
+    top = Math.round(r.top - 6 - maxH);
+  }
+
+  // Final clamp (safety)
+  if (left + maxW > window.innerWidth - 8) left = window.innerWidth - maxW - 8;
+  if (left < 8) left = 8;
+  if (top < 8) top = 8;
+
+  // Avoid inheriting any transform side-effects.
+  menuEl.style.transform = 'translate3d(0,0,0)';
+
+  // Apply
+  menuEl.style.left = left + 'px';
+  menuEl.style.top  = top + 'px';
 }
 
 function renderBudgetYearTable(data){
@@ -4599,19 +4631,39 @@ function createFlatPicker(items, initialValue, onChange, {
     if (e.key === "Escape"){ hide(); btn.focus(); }
   }
 
-  function show(){
-    menu.classList.add("show");
-    btn.setAttribute("aria-expanded", "true");
+function show(){
+  menu.classList.add("show");
+  btn.setAttribute("aria-expanded", "true");
+
+  // Reset search, (re)build items.
+  if (typeof searchInput !== 'undefined') {
     searchInput.value = "";
-    rebuild();
-    setTimeout(() => {
-      searchInput.focus();
-      // keep within viewport (you already have this helper)
-      positionCatMenu(menu, btn);
-    }, 0);
-    document.addEventListener("click", onDocClick, { once: true });
-    document.addEventListener("keydown", onKey);
   }
+  if (typeof rebuild === 'function') rebuild();
+
+  // Position after layout settles (prevents a "first frame" misplace).
+  requestAnimationFrame(() => {
+    positionCatMenu(menu, btn);
+    // Re-run once more after scrollbars/fonts settle (very cheap).
+    setTimeout(() => positionCatMenu(menu, btn), 50);
+    // Focus after positioning so the caret doesn't scroll it oddly.
+    if (typeof searchInput !== 'undefined') {
+      try { searchInput.focus(); } catch(_) {}
+    }
+  });
+
+  // Keep it glued to the button while the user scrolls/resizes.
+  const onScroll = () => { if (menu.classList.contains('show')) positionCatMenu(menu, btn); };
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll);
+  // Remove listeners on hide()
+  const _hide = hide;
+  hide = function(){
+    window.removeEventListener('scroll', onScroll);
+    window.removeEventListener('resize', onScroll);
+    _hide();
+  };
+}
 
   function hide(){
     menu.classList.remove("show");
