@@ -1217,16 +1217,7 @@ html, body {
 /* Make the picker and its menu sit above the table content */
 .catPicker { position: relative; z-index: 1; }
 
-/* Ensure the menu floats over the row (not expanding it) */
-.catMenu {
-  position: absolute;             /* already in your CSS, restating */
-  top: 100%;                      /* sit right under the button */
-  left: 0;
-  margin-top: 6px;                /* keep your existing spacing */
-  z-index: 99999;                 /* punch through table/tbody */
-  /* Optional smoothness */
-  will-change: transform;
-}
+
 
 /* If the surrounding Budget card still clips (rare), unclip it */
 #tab-budget .card {
@@ -1706,11 +1697,11 @@ html, body {
           <label>Income (planned)</label>
           <div style="display:flex; gap:8px; align-items:center;">
             <input id="budgetIncomePlanned" type="number" step="1"/>
-            <select id="budgetIncomePlannedFreq" style="max-width:130px">
-              <option value="monthly">per month</option>
-              <option value="fortnightly">per fortnight</option>
-              <option value="weekly">per week</option>
-            </select>
+			<select id="budgetIncomePlannedFreq" style="max-width:130px">
+			  <option value="month">per month</option>
+			  <option value="fortnight">per fortnight</option>
+			  <option value="week">per week</option>
+			</select>
           </div>
         </div>
         <div>
@@ -1749,13 +1740,6 @@ html, body {
 
       <div class="hr"></div>
       <div id="budgetMonthSummary" class="small"></div>
-		<!-- Month breakdown (by category) -->
-		<div class="section" id="monthChartSection" style="margin-top:12px;">
-		  <div class="sectionHeader"><h2>This month by category</h2></div>
-		  <div class="sectionBody">
-		    <canvas id="budgetMonthCatChart" height="260"></canvas>
-		  </div>
-		</div>
     </div>
 
     <!-- Year view card now shows chart first, then table -->
@@ -1787,6 +1771,7 @@ html, body {
             <h2>Tracking chart</h2>
           </div>
           <div class="sectionBody">
+			  <div id="budgetCatChips" class="chips" style="display:none; margin-bottom:8px;"></div>
             <canvas id="budgetYearChart" height="220"></canvas>
           </div>
         </div>
@@ -1928,6 +1913,12 @@ let state = {
   lastResult: null,
   collapsed: {},
 };
+
+// Chart mode + memory
+state.budgetChartMode = state.budgetChartMode || 'year';  // 'year' | 'month'
+state.budgetCategoryToggles = state.budgetCategoryToggles || {}; // label -> boolean
+state._lastBudgetYearData = state._lastBudgetYearData || null;
+	
 
 	// ===== Theme handling =====
 const THEME_KEY = "wm_theme"; // "light" | "dark" | null (auto)
@@ -4213,7 +4204,7 @@ const BUDGET_CATEGORY_GROUPS = {
 let budgetChart = null;
 let _budgetExpenses = []; // [{category, planned, actual}]
 
-let budgetMonthCatChart = null;
+
 
 function apiBaseClean() {
   return (state.apiBase || "").replace(/\/+$/, "");
@@ -4326,8 +4317,9 @@ async function budgetLoadYear(year){
     const r = await fetch(`${base}/budget/year/${year}`, { cache: "no-store" });
     if(!r.ok) throw new Error(await r.text());
     const data = await r.json();
-    renderBudgetYearTable(data);
-    drawBudgetYearChart(data);
+	renderBudgetYearTable(data);
+	state._lastBudgetYearData = data;
+	if (state.budgetChartMode === 'year') renderBudgetChart();
   } catch(e){
     alert("Budget year load failed: " + e.message);
   }
@@ -4387,97 +4379,11 @@ function renderBudgetYearTable(data){
   document.getElementById("budgetYearTable").innerHTML = html;
 }
 
-function drawBudgetYearChart(data){
+function drawBudgetBarYear(data){
   const months = (data?.months || []).map(x => x.month);
-
-  // Planned & actual expenses (monthly totals)
   const planned = (data?.months || []).map(x => Number(x.expense_planned || 0));
   const actual  = (data?.months || []).map(x => {
     const v = x.expense_actual;
-    return (v === null || v === undefined) ? null : Number(v);
-  });
-
-  // Delta stacked on top of Planned:
-  // - green  if underspend (planned - actual > 0)
-  // - red    if overspend  (actual - planned > 0)
-  const delta = planned.map((p, i) => {
-    const a = actual[i];
-    if (a == null) return 0; // no actual yet
-    return Math.abs(a - p);
-  });
-  const deltaColors = planned.map((p, i) => {
-    const a = actual[i];
-    if (a == null) return "rgba(0,0,0,0)"; // transparent when no actual
-    return (a <= p) ? "#10b981" /* green */ : "#ef4444" /* red */;
-  });
-
-  const ctx = document.getElementById("budgetYearChart").getContext("2d");
-  if (budgetChart) { budgetChart.destroy(); budgetChart = null; }
-
-  budgetChart = new Chart(ctx, {
-    type: "bar",
-    data: {
-      labels: months,
-      datasets: [
-        {
-          label: "Planned spend",
-          data: planned,
-          backgroundColor: "#3b82f6",   // blue
-          borderColor: "#3b82f6",
-          stack: "spend"
-        },
-        {
-          label: "Δ (under/over)",
-          data: delta,
-          backgroundColor: deltaColors, // per-bar color
-          borderColor: deltaColors,
-          stack: "spend"
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      interaction: { mode: "index", intersect: false },
-      plugins: {
-        legend: { display: true },
-        tooltip: {
-          callbacks: {
-            label: (c) => {
-              const idx = c.dataIndex;
-              const p = planned[idx];
-              const a = actual[idx];
-              if (c.dataset.label.startsWith("Δ")) {
-                if (a == null) return "No actual yet";
-                const diff = a - p;
-                return (diff <= 0)
-                  ? `Underspend: ${fmtMoney(Math.abs(diff))}`
-                  : `Overspend: ${fmtMoney(diff)}`;
-              }
-              return `Planned: ${fmtMoney(p)}`;
-            }
-          }
-        }
-      },
-      scales: {
-        x: { stacked: true, ticks: { color: "rgba(255,255,255,.75)" }, grid: { color: "rgba(255,255,255,.06)" } },
-        y: {
-          stacked: true,
-          ticks: { color: "rgba(255,255,255,.55)", callback: (v) => moneyAxis(v) },
-          grid: { color: "rgba(255,255,255,.06)" },
-          title: { display: true, text: "Monthly spend", font: { size: 14, weight: "700" } }
-        }
-      }
-    }
-  });
-}
-
-function drawBudgetMonthCategoriesChart(data){
-  const cats = (data?.categories || []);
-  const labels = cats.map(c => c.category);
-
-  const planned = cats.map(c => Number(c.planned || 0));
-  const actual  = cats.map(c => {
-    const v = c.actual;
     return (v === null || v === undefined) ? null : Number(v);
   });
 
@@ -4488,41 +4394,25 @@ function drawBudgetMonthCategoriesChart(data){
   });
   const deltaColors = planned.map((p, i) => {
     const a = actual[i];
-    if (a == null) return "rgba(0,0,0,0)";
-    return (a <= p) ? "#10b981" /* green */ : "#ef4444" /* red */;
+    if (a == null) return 'rgba(0,0,0,0)';
+    return (a <= p) ? '#10b981' : '#ef4444'; // green underspend, red overspend
   });
 
-  const el = document.getElementById("budgetMonthCatChart");
-  if (!el) return;
+  const ctx = document.getElementById('budgetYearChart').getContext('2d');
+  if (budgetChart) { budgetChart.destroy(); budgetChart = null; }
 
-  const ctx = el.getContext("2d");
-  if (budgetMonthCatChart) { budgetMonthCatChart.destroy(); budgetMonthCatChart = null; }
-
-  budgetMonthCatChart = new Chart(ctx, {
-    type: "bar",
+  budgetChart = new Chart(ctx, {
+    type: 'bar',
     data: {
-      labels,
+      labels: months,
       datasets: [
-        {
-          label: "Planned",
-          data: planned,
-          backgroundColor: "#3b82f6",
-          borderColor: "#3b82f6",
-          stack: "spend"
-        },
-        {
-          label: "Δ (under/over)",
-          data: delta,
-          backgroundColor: deltaColors,
-          borderColor: deltaColors,
-          stack: "spend"
-        }
+        { label: 'Planned spend', data: planned, backgroundColor: '#3b82f6', borderColor: '#3b82f6', stack: 'spend' },
+        { label: 'Δ (under/over)', data: delta, backgroundColor: deltaColors, borderColor: deltaColors, stack: 'spend' }
       ]
     },
     options: {
       responsive: true,
-      indexAxis: "x", // vertical bars
-      interaction: { mode: "index", intersect: false },
+      interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: true },
         tooltip: {
@@ -4531,12 +4421,10 @@ function drawBudgetMonthCategoriesChart(data){
               const i = c.dataIndex;
               const p = planned[i];
               const a = actual[i];
-              if (c.dataset.label.startsWith("Δ")) {
-                if (a == null) return "No actual yet";
+              if (c.dataset.label.startsWith('Δ')) {
+                if (a == null) return 'No actual yet';
                 const diff = a - p;
-                return (diff <= 0)
-                  ? `Underspend: ${fmtMoney(Math.abs(diff))}`
-                  : `Overspend: ${fmtMoney(diff)}`;
+                return (diff <= 0) ? `Underspend: ${fmtMoney(Math.abs(diff))}` : `Overspend: ${fmtMoney(diff)}`;
               }
               return `Planned: ${fmtMoney(p)}`;
             }
@@ -4544,21 +4432,126 @@ function drawBudgetMonthCategoriesChart(data){
         }
       },
       scales: {
-        x: { stacked: true, ticks: { color: "rgba(255,255,255,.75)" }, grid: { color: "rgba(255,255,255,.06)" } },
+        x: { stacked: true, ticks: { color: 'rgba(255,255,255,.75)' }, grid: { color: 'rgba(255,255,255,.06)' } },
         y: {
           stacked: true,
-          ticks: { color: "rgba(255,255,255,.55)", callback: (v) => moneyAxis(v) },
-          grid: { color: "rgba(255,255,255,.06)" },
-          title: { display: true, text: "Spend by category", font: { size: 14, weight: "700" } }
+          ticks: { color: 'rgba(255,255,255,.55)', callback: v => moneyAxis(v) },
+          grid: { color: 'rgba(255,255,255,.06)' },
+          title: { display: true, text: 'Monthly spend', font: { size: 14, weight: '700' } }
         }
       }
     }
   });
 }
 
+function renderBudgetCategoryChips(labels){
+  const wrap = document.getElementById('budgetCatChips');
+  if (!wrap) return;
+  wrap.style.display = (state.budgetChartMode === 'month') ? '' : 'none';
+  wrap.innerHTML = '';
+
+  labels.forEach(lbl => {
+    if (state.budgetCategoryToggles[lbl] === undefined) state.budgetCategoryToggles[lbl] = true;
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (state.budgetCategoryToggles[lbl] ? ' active' : '');
+    chip.textContent = lbl;
+    chip.title = 'Toggle category';
+    chip.onclick = () => {
+      state.budgetCategoryToggles[lbl] = !state.budgetCategoryToggles[lbl];
+      renderBudgetChart(); // redraw
+    };
+    wrap.appendChild(chip);
+  });
+}
+
+function drawBudgetBarMonthFromState(){
+  // Build labels from rows => ensures all categories on X-axis
+  const labels = _budgetExpenses.map(x => formatCategory(x.group, x.category) || '(uncategorised)');
+
+  // Normalize to monthly
+  const plannedRaw = _budgetExpenses.map(x => toMonthlyAmount(Number(x.planned)||0, x.plannedFreq || 'month'));
+  const actualRaw  = _budgetExpenses.map(x => (x.actual==null) ? null : toMonthlyAmount(Number(x.actual)||0, x.actualFreq || 'month'));
+
+  // Apply per-category toggle (keep labels; just zero data when disabled)
+  const planned = plannedRaw.map((p,i) => (state.budgetCategoryToggles[labels[i]] === false ? 0 : p));
+  const delta   = plannedRaw.map((p,i) => {
+    if (state.budgetCategoryToggles[labels[i]] === false) return 0;
+    const a = actualRaw[i];
+    if (a == null) return 0; // no actual yet -> no delta stack
+    return Math.abs(a - p);
+  });
+  const deltaColors = plannedRaw.map((p,i) => {
+    const a = actualRaw[i];
+    if (state.budgetCategoryToggles[labels[i]] === false || a == null) return 'rgba(0,0,0,0)';
+    return (a <= p) ? '#10b981' : '#ef4444';
+  });
+
+  const ctx = document.getElementById('budgetYearChart').getContext('2d');
+  if (budgetChart) { budgetChart.destroy(); budgetChart = null; }
+
+  budgetChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Planned', data: planned, backgroundColor: '#3b82f6', borderColor: '#3b82f6', stack: 'spend' },
+        { label: 'Δ (under/over)', data: delta, backgroundColor: deltaColors, borderColor: deltaColors, stack: 'spend' }
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: true },
+        tooltip: {
+          callbacks: {
+            label: (c) => {
+              const i = c.dataIndex;
+              const p = plannedRaw[i];
+              const a = actualRaw[i];
+              if (c.dataset.label.startsWith('Δ')) {
+                if (a == null) return 'No actual yet';
+                const diff = a - p;
+                return (diff <= 0) ? `Underspend: ${fmtMoney(Math.abs(diff))}` : `Overspend: ${fmtMoney(diff)}`;
+              }
+              return `Planned: ${fmtMoney(p)}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: { stacked: true, ticks: { color: 'rgba(255,255,255,.75)' }, grid: { color: 'rgba(255,255,255,.06)' } },
+        y: {
+          stacked: true,
+          ticks: { color: 'rgba(255,255,255,.55)', callback: v => moneyAxis(v) },
+          grid: { color: 'rgba(255,255,255,.06)' },
+          title: { display: true, text: 'Spend by category (monthly)', font: { size: 14, weight: '700' } }
+        }
+      }
+    }
+  });
+
+  // Build/refresh chips for category toggling
+  renderBudgetCategoryChips(labels);
+}
+
+
+
 /* ======================
    Budget: Monthly editor
    ====================== */
+
+function renderBudgetChart(){
+  if (state.budgetChartMode === 'year'){
+    // hide chips in year mode
+    const chips = document.getElementById('budgetCatChips');
+    if (chips) chips.style.display = 'none';
+    drawBudgetBarYear(state._lastBudgetYearData || { months: [] });
+  } else {
+    drawBudgetBarMonthFromState();
+  }
+}
+	
 function budgetClearExpenseRows(){
   _budgetExpenses = [];
   const tbody = document.getElementById("budgetExpenseTbody");
@@ -4978,7 +4971,7 @@ function budgetRemoveExpense(idx){
 
 async function budgetEditMonth(m){
   document.getElementById("budgetMonthInput").value = m;
-  await budgetLoadMonth();
+  await budgetLoadMonth();      // loads data + repaints if Month mode
   showTab("budget");
 }
 
@@ -4992,50 +4985,53 @@ async function budgetLoadMonth(){
     if(!r.ok) throw new Error(await r.text());
     const data = await r.json();
 
+    // Income
     document.getElementById("budgetIncomePlanned").value = data.income?.planned ?? 0;
-    document.getElementById("budgetIncomeActual").value  = (data.income?.actual ?? "") === null ? "" : (data.income?.actual ?? "");
-	  document.getElementById("budgetIncomePlannedFreq").value = data.income?.planned_freq || "month";
-	document.getElementById("budgetIncomeActualFreq").value  = data.income?.actual_freq  || "month";
+    document.getElementById("budgetIncomeActual").value  =
+      (data.income?.actual ?? "") === null ? "" : (data.income?.actual ?? "");
+    // Frequencies (default to "month" if missing)
+    document.getElementById("budgetIncomePlannedFreq").value = data.income?.planned_freq || "month";
+    document.getElementById("budgetIncomeActualFreq").value  = data.income?.actual_freq  || "month";
 
-
-	  
-	// Fallback: existing API had no freq; default to month
-	document.getElementById("budgetIncomePlannedFreq").value = data.income?.planned_freq || "month";
-	document.getElementById("budgetIncomeActualFreq").value  = data.income?.actual_freq  || "month";
-
-
+    // Categories
     budgetClearExpenseRows();
+    (data.categories || []).forEach(cat => {
+      const { group, category } = parseCategoryLabel(cat.category);
+      budgetAddExpenseRow({
+        group,
+        category,
+        planned: cat.planned ?? 0,
+        actual:  (cat.actual === null ? null : cat.actual),
+        plannedFreq: cat.planned_freq || "month",
+        actualFreq:  cat.actual_freq  || "month"
+      });
+    });
 
-	  (data.categories || []).forEach(cat => {
-	    const { group, category } = parseCategoryLabel(cat.category);
-		budgetAddExpenseRow({
-		  group,
-		  category,
-		  planned: cat.planned ?? 0,
-		  actual:  (cat.actual === null ? null : cat.actual),
-		  plannedFreq: cat.planned_freq || "month",
-		  actualFreq:  cat.actual_freq  || "month"
-		});
-	  });
-
-
+    // Update summary
     budgetUpdateMonthSummary();
-	  drawBudgetMonthCategoriesChart(data);
-	  
-	} catch(e){
-	  // If month doesn't exist yet, try to prefill from previous month
-	  budgetClearExpenseRows();
-	  document.getElementById("budgetIncomePlanned").value = 0;
-	  document.getElementById("budgetIncomeActual").value = "";
-	
-	  const m = document.getElementById("budgetMonthInput").value;
-	  const copied = await budgetPrefillFromPrevious(m);
-	  if(!copied){
-	    // Still blank if no previous month found
-	    budgetUpdateMonthSummary();
-		  try { drawBudgetMonthCategoriesChart({ categories: [] }); } catch(_) {}
-	  }
-	}
+
+    // ⬅️ NEW: If the single-chart is in Month mode, redraw it now
+    if (state.budgetChartMode === 'month') {
+      renderBudgetChart();  // uses current editor state to build the Month bars
+    }
+
+  } catch(e){
+    // If month doesn't exist yet, try to prefill from previous month
+    budgetClearExpenseRows();
+    document.getElementById("budgetIncomePlanned").value = 0;
+    document.getElementById("budgetIncomeActual").value = "";
+
+    const currentYm = document.getElementById("budgetMonthInput").value;
+    const copied = await budgetPrefillFromPrevious(currentYm);
+
+    // Whether copied or not, keep the UI coherent
+    budgetUpdateMonthSummary();
+
+    // ⬅️ NEW: Still refresh the Month chart so it never shows stale data
+    if (state.budgetChartMode === 'month') {
+      renderBudgetChart();  // will draw empty/blank categories if there’s nothing yet
+    }
+  }
 }
 	
 function freqToMonthlyFactor(freq){
@@ -5084,6 +5080,12 @@ function budgetUpdateMonthSummary(){
       ("Actual: Income " + fmtMoney(iaMonthly) + " – Expenses " + fmtMoney(ea) + " = <b>" + fmtMoney(netA) + "</b>")
     }
   `;
+
+  if (state.budgetChartMode === 'month') {
+    try { renderBudgetChart(); } catch(_) {}
+  }
+
+	
 }
 
 async function budgetSave(){
@@ -5167,8 +5169,8 @@ async function budgetPrefillFromPrevious(currentYm){
 	   const { group, category } = parseCategoryLabel(cat.category);
 
 		budgetAddExpenseRow({
-		  group: parsed.group,
-		  category: parsed.category,
+		  group,
+		  category,
 		  planned: cat.planned ?? 0,
 		  actual: null,
 		  plannedFreq: cat.planned_freq || "month",
@@ -5185,21 +5187,15 @@ async function budgetPrefillFromPrevious(currentYm){
 }
 
 function showBudgetChart(which){
-  const yearSec  = document.getElementById('yearChartSection');
+  state.budgetChartMode = (which === 'month') ? 'month' : 'year';
+
+  // update toggle button look
   const bYear  = document.getElementById('btnBudgetYear');
   const bMonth = document.getElementById('btnBudgetMonth');
+  if (bYear)  { bYear.classList.toggle('active', state.budgetChartMode==='year');  bYear.setAttribute('aria-selected', String(state.budgetChartMode==='year')); }
+  if (bMonth) { bMonth.classList.toggle('active', state.budgetChartMode==='month'); bMonth.setAttribute('aria-selected', String(state.budgetChartMode==='month')); }
 
-  if (which === 'year') {
-    if (yearSec) yearSec.style.display = '';
-    if (bYear)  { bYear.classList.add('active');  bYear.setAttribute('aria-selected','true'); }
-    if (bMonth) { bMonth.classList.remove('active'); bMonth.setAttribute('aria-selected','false'); }
-    document.getElementById('budgetYearChart')?.scrollIntoView({ behavior:'smooth', block:'start' });
-  } else {
-    if (yearSec) yearSec.style.display = 'none';
-    if (bYear)  { bYear.classList.remove('active'); bYear.setAttribute('aria-selected','false'); }
-    if (bMonth) { bMonth.classList.add('active');   bMonth.setAttribute('aria-selected','true'); }
-    document.getElementById('monthChartSection')?.scrollIntoView({ behavior:'smooth', block:'start' });
-  }
+  renderBudgetChart();  // draw immediately
 }
 
 function budgetInit(){
