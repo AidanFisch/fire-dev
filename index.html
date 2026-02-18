@@ -592,6 +592,17 @@
   flex: 1 1 auto;
 }
 
+/* === Chart area full-width inside card === */
+#yearChartSection .sectionBody {
+  padding: 0;            /* remove inner padding so the canvas can fill */
+}
+
+#budgetYearChart {
+  display: block;        /* remove inline-canvas spacing */
+  width: 100% !important;
+  height: 420px;         /* pick the height you want (e.g., 380–500px) */
+}
+
 /* Make table wrapper allow the dropdown menus to float above */
 #tab-budget .tablewrap {
   overflow: visible !important;
