@@ -548,7 +548,72 @@
   background:rgba(255,255,255,.04);
 }
 
+/* --- Budget editor layout polish --- */
 
+/* Make table cells flexible and give breathing room */
+#tab-budget .tablewrap table td,
+#tab-budget .tablewrap table th {
+  vertical-align: middle;
+}
+
+#tab-budget .tablewrap table td > .cell-flex {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;            /* allow inner controls to shrink */
+}
+
+#tab-budget .tablewrap table td .cell-flex > * {
+  min-width: 0;
+}
+
+/* Inputs + selects in the editor */
+#tab-budget input[type="number"],
+#tab-budget select {
+  height: 40px;            /* uniform height */
+}
+
+/* Keep category pickers from colliding */
+#tab-budget td:first-child .catPickerBtn {
+  width: 180px;            /* group */
+}
+#tab-budget td:first-child .catPickerBtn + .catPicker { /* second picker */
+  width: 220px;
+}
+
+/* Planned/Actual cells: the select shouldn't squeeze the input */
+#tab-budget td .freqSelect {
+  width: 130px;
+  flex: 0 0 auto;
+}
+
+#tab-budget td .amountInput {
+  max-width: 160px;        /* keep a sensible width */
+  flex: 1 1 auto;
+}
+
+/* Make table wrapper allow the dropdown menus to float above */
+#tab-budget .tablewrap {
+  overflow: visible !important;
+}
+
+/* Icon-only remove button */
+.btn.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 10px;
+}
+.btn.icon svg {
+  width: 16px;
+  height: 16px;
+  opacity: .9;
+  /* inherit current color */
+}
 
 /* tables */
 .tablewrap{
@@ -1622,9 +1687,9 @@ html, body {
           <div style="display:flex; gap:8px; align-items:center;">
             <input id="budgetIncomePlanned" type="number" step="1"/>
             <select id="budgetIncomePlannedFreq" style="max-width:130px">
-              <option value="month">per month</option>
-              <option value="fortnight">per fortnight</option>
-              <option value="week">per week</option>
+              <option value="monthly">per month</option>
+              <option value="fortnightly">per fortnight</option>
+              <option value="weekly">per week</option>
             </select>
           </div>
         </div>
@@ -4588,47 +4653,76 @@ function budgetAddExpenseRow(item){
   tdCat.appendChild(groupWrap);
   tdCat.appendChild(subWrap);
 
-  // PLANNED
-  const tdPlanned = document.createElement("td");
-  tdPlanned.className = "right";
-  const inpPlanned = document.createElement("input");
-  inpPlanned.type = "number";
-  inpPlanned.step = "1";
-  inpPlanned.value = String(row.planned || 0);
-  inpPlanned.oninput = (e) => { row.planned = Number(e.target.value) || 0; budgetUpdateMonthSummary(); };
-  tdPlanned.appendChild(inpPlanned);
+// PLANNED
+const tdPlanned = document.createElement("td");
+tdPlanned.className = "right";
 
-	
+// flex wrapper so input + select sit nicely
+const plannedWrap = document.createElement("div");
+plannedWrap.className = "cell-flex";
+
+const inpPlanned = document.createElement("input");
+inpPlanned.type = "number";
+inpPlanned.step = "1";
+inpPlanned.value = String(row.planned || 0);
+inpPlanned.className = "amountInput";
+inpPlanned.oninput = (e) => {
+  row.planned = Number(e.target.value) || 0;
+  budgetUpdateMonthSummary();
+};
+plannedWrap.appendChild(inpPlanned);
+
 const selPlannedFreq = document.createElement("select");
+selPlannedFreq.className = "freqSelect";
 selPlannedFreq.innerHTML = `
-  <option value="month">/month</option>
-  <option value="fortnight">/fortnight</option>
-  <option value="week">/week</option>`;
+  <option value="month">monthly</option>
+  <option value="fortnight">fortnightly</option>
+  <option value="week">weekly</option>`;
 selPlannedFreq.style.marginLeft = "8px";
 selPlannedFreq.value = row.plannedFreq || "month";
-selPlannedFreq.onchange = () => { row.plannedFreq = selPlannedFreq.value || "month"; budgetUpdateMonthSummary(); };
-tdPlanned.appendChild(selPlannedFreq);
+selPlannedFreq.onchange = () => {
+  row.plannedFreq = selPlannedFreq.value || "month";
+  budgetUpdateMonthSummary();
+};
+plannedWrap.appendChild(selPlannedFreq);
+
+tdPlanned.appendChild(plannedWrap);
 
 
-  // ACTUAL
-  const tdActual = document.createElement("td");
-  tdActual.className = "right";
-  const inpActual = document.createElement("input");
-  inpActual.type = "number";
-  inpActual.step = "1";
-  inpActual.value = row.actual == null ? "" : String(row.actual);
-  inpActual.oninput = (e) => { row.actual = (e.target.value === "" ? null : (Number(e.target.value)||0)); budgetUpdateMonthSummary(); };
-  tdActual.appendChild(inpActual);
+// ACTUAL
+const tdActual = document.createElement("td");
+tdActual.className = "right";
 
-	const selActualFreq = document.createElement("select");
-	selActualFreq.innerHTML = `
-	  <option value="month">/month</option>
-	  <option value="fortnight">/fortnight</option>
-	  <option value="week">/week</option>`;
-	selActualFreq.style.marginLeft = "8px";
-	selActualFreq.value = row.actualFreq || "month";
-	selActualFreq.onchange = () => { row.actualFreq = selActualFreq.value || "month"; budgetUpdateMonthSummary(); };
-	tdActual.appendChild(selActualFreq);
+// flex wrapper so input + select sit nicely
+const actualWrap = document.createElement("div");
+actualWrap.className = "cell-flex";
+
+const inpActual = document.createElement("input");
+inpActual.type = "number";
+inpActual.step = "1";
+inpActual.value = row.actual == null ? "" : String(row.actual);
+inpActual.className = "amountInput";
+inpActual.oninput = (e) => {
+  row.actual = (e.target.value === "" ? null : (Number(e.target.value) || 0));
+  budgetUpdateMonthSummary();
+};
+actualWrap.appendChild(inpActual);
+
+const selActualFreq = document.createElement("select");
+selActualFreq.className = "freqSelect";
+selActualFreq.innerHTML = `
+  <option value="month">monthly</option>
+  <option value="fortnight">fortnightly</option>
+  <option value="week">weekly</option>`;
+selActualFreq.style.marginLeft = "8px";
+selActualFreq.value = row.actualFreq || "month";
+selActualFreq.onchange = () => {
+  row.actualFreq = selActualFreq.value || "month";
+  budgetUpdateMonthSummary();
+};
+actualWrap.appendChild(selActualFreq);
+
+tdActual.appendChild(actualWrap);
 
 
   // REMOVE
