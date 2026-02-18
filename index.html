@@ -1093,9 +1093,11 @@ html, body {
 }
 
 /* === Pretty Category Picker (replaces native <select>) === */
+/* === Pretty Category Picker (simple absolute dropdown) === */
 .catPicker {
-  position: relative;
+  position: relative;      /* anchor for absolute dropdown */
   width: 100%;
+  z-index: 5;              /* keep the picker above table cells */
 }
 
 .catPickerBtn {
@@ -1128,23 +1130,27 @@ html, body {
   font-size: 12px;
 }
 
+/* 👇 Simple: menu is absolutely positioned under the button */
 .catMenu {
-  position: fixed;
-  z-index: 9999;
-  margin-top: 6px;
-  width: 420px;
-  max-width: min(420px, calc(100vw - 32px));
-  max-height: 360px;
-  overflow: auto;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,.12);
-  background: rgba(10,13,24,.98);
-  box-shadow: 0 18px 50px rgba(0,0,0,.55);
-  padding: 8px;
-  display: none;
-}
+  position: absolute;
+  top: 100%;
+  left: 0;
 
+  /* width: 100% fills the picker width; or set a fixed width if you prefer */
+  width: 100%;
+  max-height: 300px;
+  overflow-y: auto;
+
+  display: none;
+  background: rgba(10,13,24,.98);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 14px;
+  box-shadow: 0 8px 30px rgba(0,0,0,.5);
+  padding: 8px;
+  z-index: 10000; /* float over anything below */
+}
 .catMenu.show { display: block; }
+
 
 .catGroup {
   padding: 6px 8px 4px;
@@ -4325,48 +4331,7 @@ async function budgetLoadYear(year){
   }
 }
 
-function positionCatMenu(menuEl, btnEl) {
-  if (!menuEl || !btnEl) return;
 
-  // Force the correct positioning mode in case CSS caching bit us.
-  menuEl.style.position = 'fixed';
-
-  // Clear any stale anchors from a previous open.
-  menuEl.style.left = 'auto';
-  menuEl.style.right = 'auto';
-  menuEl.style.top = 'auto';
-  menuEl.style.bottom = 'auto';
-
-  const r = btnEl.getBoundingClientRect();
-
-  // Menu target size (mirror your CSS)
-  const maxW = Math.min(420, window.innerWidth - 32);
-  const maxH = Math.min(360, window.innerHeight - 32);
-  menuEl.style.width = maxW + 'px';
-
-  // Preferred: below the button, left-aligned
-  let left = Math.round(Math.max(8, Math.min(r.left, window.innerWidth - maxW - 8)));
-  let top  = Math.round(r.bottom + 6);
-
-  // If it would overflow the bottom, flip above the button (when possible).
-  const wouldOverflowBottom = (top + maxH) > (window.innerHeight - 8);
-  const canFlip = (r.top - 6 - maxH) >= 8;
-  if (wouldOverflowBottom && canFlip) {
-    top = Math.round(r.top - 6 - maxH);
-  }
-
-  // Final clamp (safety)
-  if (left + maxW > window.innerWidth - 8) left = window.innerWidth - maxW - 8;
-  if (left < 8) left = 8;
-  if (top < 8) top = 8;
-
-  // Avoid inheriting any transform side-effects.
-  menuEl.style.transform = 'translate3d(0,0,0)';
-
-  // Apply
-  menuEl.style.left = left + 'px';
-  menuEl.style.top  = top + 'px';
-}
 
 function renderBudgetYearTable(data){
   const rows = (data && data.months) ? data.months : [];
@@ -4635,41 +4600,26 @@ function show(){
   menu.classList.add("show");
   btn.setAttribute("aria-expanded", "true");
 
-  // Reset search, (re)build items.
-  if (typeof searchInput !== 'undefined') {
-    searchInput.value = "";
-  }
+  // reset search & rebuild if you have them
+  if (typeof searchInput !== 'undefined') searchInput.value = "";
   if (typeof rebuild === 'function') rebuild();
 
-  // Position after layout settles (prevents a "first frame" misplace).
-  requestAnimationFrame(() => {
-    positionCatMenu(menu, btn);
-    // Re-run once more after scrollbars/fonts settle (very cheap).
-    setTimeout(() => positionCatMenu(menu, btn), 50);
-    // Focus after positioning so the caret doesn't scroll it oddly.
-    if (typeof searchInput !== 'undefined') {
-      try { searchInput.focus(); } catch(_) {}
-    }
-  });
+  // focus search after open (optional)
+  if (typeof searchInput !== 'undefined') {
+    try { searchInput.focus(); } catch(_) {}
+  }
 
-  // Keep it glued to the button while the user scrolls/resizes.
-  const onScroll = () => { if (menu.classList.contains('show')) positionCatMenu(menu, btn); };
-  window.addEventListener('scroll', onScroll, { passive: true });
-  window.addEventListener('resize', onScroll);
-  // Remove listeners on hide()
-  const _hide = hide;
-  hide = function(){
-    window.removeEventListener('scroll', onScroll);
-    window.removeEventListener('resize', onScroll);
-    _hide();
-  };
+  // close on outside click
+  document.addEventListener("click", onDocClick, { once: true });
+  document.addEventListener("keydown", onKey);
+}
+function hide(){
+  menu.classList.remove("show");
+  btn.setAttribute("aria-expanded", "false");
+  document.removeEventListener("keydown", onKey);
 }
 
-  function hide(){
-    menu.classList.remove("show");
-    btn.setAttribute("aria-expanded", "false");
-    document.removeEventListener("keydown", onKey);
-  }
+
 
   function promptOther(label = "Enter a custom value"){
     const v = (window.prompt(label, "") || "").trim();
@@ -4802,18 +4752,18 @@ function createCategoryPicker(initialValue, onChange) {
     if (e.key === "Escape") { hide(); btn.focus(); }
   };
 
-  const show = () => {
-    menu.classList.add("show");
-    btn.setAttribute("aria-expanded", "true");
-    searchInput.value = "";
-    rebuild();
-    setTimeout(() => {
-      searchInput.focus();
-      positionCatMenu(menu, btn); // keep menu within viewport
-    }, 0);
-    document.addEventListener("click", handleDocClick, { once: true });
-    document.addEventListener("keydown", handleKey);
-  };
+
+const show = () => {
+   menu.classList.add("show");
+   btn.setAttribute("aria-expanded", "true");
+   searchInput.value = "";
+   rebuild();
+   // focus the search after opening (optional)
+   setTimeout(() => { try { searchInput.focus(); } catch(_) {} }, 0);
+   document.addEventListener("click", handleDocClick, { once: true });
+   document.addEventListener("keydown", handleKey);
+ };
+
 
   const hide = () => {
     menu.classList.remove("show");
