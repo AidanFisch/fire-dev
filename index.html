@@ -4253,6 +4253,36 @@ function freqToMonthlyFactor(freq){
 function toMonthlyAmount(value, freq){
   return (Number(value) || 0) * freqToMonthlyFactor(freq);
 }
+
+// Update the in-memory year dataset with the editor's current month totals (preview only).
+function _syncYearPreviewFromEditor({ ipMonthly, iaMonthly, ep, ea }) {
+  const ym = document.getElementById("budgetMonthInput")?.value; // "YYYY-MM"
+  if (!ym) return;
+
+  const data = state._lastBudgetYearData;
+  if (!data || !Array.isArray(data.months)) return;
+
+  const idx = data.months.findIndex(row => String(row.month) === ym);
+  if (idx < 0) return;
+
+  // Clone and patch just this month
+  const copy = { ...data.months[idx] };
+  copy.income_planned  = ipMonthly;
+  copy.income_actual   = (iaMonthly == null ? null : iaMonthly);
+  copy.expense_planned = ep;
+  copy.expense_actual  = (iaMonthly == null ? null : ea);
+  copy.net_planned     = ipMonthly - ep;
+  copy.net_actual      = (iaMonthly == null ? null : (iaMonthly - ea));
+
+  const monthsNew = data.months.slice();
+  monthsNew[idx] = copy;
+  state._lastBudgetYearData = { ...data, months: monthsNew };
+
+  // If Year view is active, redraw so the bars change immediately
+  if (state.budgetChartMode === 'year') {
+    renderBudgetChart();
+  }
+}
 	
 function budgetFillActualsFromPlanned(){
   // Income
@@ -5082,6 +5112,8 @@ function budgetUpdateMonthSummary(){
       ("Actual: Income " + fmtMoney(iaMonthly) + " – Expenses " + fmtMoney(ea) + " = <b>" + fmtMoney(netA) + "</b>")
     }
   `;
+	
+	 _syncYearPreviewFromEditor({ ipMonthly, iaMonthly, ep, ea });
 
   if (state.budgetChartMode === 'month') {
     try { renderBudgetChart(); } catch(_) {}
