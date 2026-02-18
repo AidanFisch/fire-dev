@@ -1749,6 +1749,13 @@ html, body {
 
       <div class="hr"></div>
       <div id="budgetMonthSummary" class="small"></div>
+		<!-- Month breakdown (by category) -->
+		<div class="section" style="margin-top:12px;">
+		  <div class="sectionHeader"><h2>This month by category</h2></div>
+		  <div class="sectionBody">
+		    <canvas id="budgetMonthCatChart" height="260"></canvas>
+		  </div>
+		</div>
     </div>
 
     <!-- Year view card now shows chart first, then table -->
@@ -4200,6 +4207,8 @@ const BUDGET_CATEGORY_GROUPS = {
 let budgetChart = null;
 let _budgetExpenses = []; // [{category, planned, actual}]
 
+let budgetMonthCatChart = null;
+
 function apiBaseClean() {
   return (state.apiBase || "").replace(/\/+$/, "");
 }
@@ -4380,26 +4389,169 @@ function renderBudgetYearTable(data){
 
 function drawBudgetYearChart(data){
   const months = (data?.months || []).map(x => x.month);
-  const netP   = (data?.months || []).map(x => x.net_planned ?? ((x.income_planned||0) - (x.expense_planned||0)));
-  const netA   = (data?.months || []).map(x => (x.income_actual!=null && x.expense_actual!=null) ? (x.income_actual - x.expense_actual) : null);
+
+  // Planned & actual expenses (monthly totals)
+  const planned = (data?.months || []).map(x => Number(x.expense_planned || 0));
+  const actual  = (data?.months || []).map(x => {
+    const v = x.expense_actual;
+    return (v === null || v === undefined) ? null : Number(v);
+  });
+
+  // Delta stacked on top of Planned:
+  // - green  if underspend (planned - actual > 0)
+  // - red    if overspend  (actual - planned > 0)
+  const delta = planned.map((p, i) => {
+    const a = actual[i];
+    if (a == null) return 0; // no actual yet
+    return Math.abs(a - p);
+  });
+  const deltaColors = planned.map((p, i) => {
+    const a = actual[i];
+    if (a == null) return "rgba(0,0,0,0)"; // transparent when no actual
+    return (a <= p) ? "#10b981" /* green */ : "#ef4444" /* red */;
+  });
 
   const ctx = document.getElementById("budgetYearChart").getContext("2d");
   if (budgetChart) { budgetChart.destroy(); budgetChart = null; }
 
   budgetChart = new Chart(ctx, {
-    type: "line",
+    type: "bar",
     data: {
       labels: months,
       datasets: [
-        { label: "Net savings (planned)", data: netP, borderColor: "#60a5fa", backgroundColor: "#60a5fa", tension: .25, pointRadius: 2 },
-        { label: "Net savings (actual)",  data: netA, borderColor: "#10b981", backgroundColor: "#10b981", tension: .25, pointRadius: 2 }
+        {
+          label: "Planned spend",
+          data: planned,
+          backgroundColor: "#3b82f6",   // blue
+          borderColor: "#3b82f6",
+          stack: "spend"
+        },
+        {
+          label: "Δ (under/over)",
+          data: delta,
+          backgroundColor: deltaColors, // per-bar color
+          borderColor: deltaColors,
+          stack: "spend"
+        }
       ]
     },
     options: {
       responsive: true,
       interaction: { mode: "index", intersect: false },
-      plugins: { legend: { display: true } },
-      scales: { y: { ticks: { callback: v => moneyAxis(v) } } }
+      plugins: {
+        legend: { display: true },
+        tooltip: {
+          callbacks: {
+            label: (c) => {
+              const idx = c.dataIndex;
+              const p = planned[idx];
+              const a = actual[idx];
+              if (c.dataset.label.startsWith("Δ")) {
+                if (a == null) return "No actual yet";
+                const diff = a - p;
+                return (diff <= 0)
+                  ? `Underspend: ${fmtMoney(Math.abs(diff))}`
+                  : `Overspend: ${fmtMoney(diff)}`;
+              }
+              return `Planned: ${fmtMoney(p)}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: { stacked: true, ticks: { color: "rgba(255,255,255,.75)" }, grid: { color: "rgba(255,255,255,.06)" } },
+        y: {
+          stacked: true,
+          ticks: { color: "rgba(255,255,255,.55)", callback: (v) => moneyAxis(v) },
+          grid: { color: "rgba(255,255,255,.06)" },
+          title: { display: true, text: "Monthly spend", font: { size: 14, weight: "700" } }
+        }
+      }
+    }
+  });
+}
+
+function drawBudgetMonthCategoriesChart(data){
+  const cats = (data?.categories || []);
+  const labels = cats.map(c => c.category);
+
+  const planned = cats.map(c => Number(c.planned || 0));
+  const actual  = cats.map(c => {
+    const v = c.actual;
+    return (v === null || v === undefined) ? null : Number(v);
+  });
+
+  const delta = planned.map((p, i) => {
+    const a = actual[i];
+    if (a == null) return 0;
+    return Math.abs(a - p);
+  });
+  const deltaColors = planned.map((p, i) => {
+    const a = actual[i];
+    if (a == null) return "rgba(0,0,0,0)";
+    return (a <= p) ? "#10b981" /* green */ : "#ef4444" /* red */;
+  });
+
+  const el = document.getElementById("budgetMonthCatChart");
+  if (!el) return;
+
+  const ctx = el.getContext("2d");
+  if (budgetMonthCatChart) { budgetMonthCatChart.destroy(); budgetMonthCatChart = null; }
+
+  budgetMonthCatChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "Planned",
+          data: planned,
+          backgroundColor: "#3b82f6",
+          borderColor: "#3b82f6",
+          stack: "spend"
+        },
+        {
+          label: "Δ (under/over)",
+          data: delta,
+          backgroundColor: deltaColors,
+          borderColor: deltaColors,
+          stack: "spend"
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      indexAxis: "x", // vertical bars
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { display: true },
+        tooltip: {
+          callbacks: {
+            label: (c) => {
+              const i = c.dataIndex;
+              const p = planned[i];
+              const a = actual[i];
+              if (c.dataset.label.startsWith("Δ")) {
+                if (a == null) return "No actual yet";
+                const diff = a - p;
+                return (diff <= 0)
+                  ? `Underspend: ${fmtMoney(Math.abs(diff))}`
+                  : `Overspend: ${fmtMoney(diff)}`;
+              }
+              return `Planned: ${fmtMoney(p)}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: { stacked: true, ticks: { color: "rgba(255,255,255,.75)" }, grid: { color: "rgba(255,255,255,.06)" } },
+        y: {
+          stacked: true,
+          ticks: { color: "rgba(255,255,255,.55)", callback: (v) => moneyAxis(v) },
+          grid: { color: "rgba(255,255,255,.06)" },
+          title: { display: true, text: "Spend by category", font: { size: 14, weight: "700" } }
+        }
+      }
     }
   });
 }
@@ -4868,6 +5020,8 @@ async function budgetLoadMonth(){
 
 
     budgetUpdateMonthSummary();
+	  drawBudgetMonthCategoriesChart(data);
+	  
 	} catch(e){
 	  // If month doesn't exist yet, try to prefill from previous month
 	  budgetClearExpenseRows();
@@ -4879,6 +5033,7 @@ async function budgetLoadMonth(){
 	  if(!copied){
 	    // Still blank if no previous month found
 	    budgetUpdateMonthSummary();
+		  try { drawBudgetMonthCategoriesChart({ categories: [] }); } catch(_) {}
 	  }
 	}
 }
