@@ -1064,6 +1064,26 @@ html, body {
   display: none;
 }
 
+/* ===== Budget: make Monthly editor overlays appear ABOVE the chart card ===== */
+
+/* Make all budget cards create a stacking context */
+#tab-budget .card { position: relative; }
+
+/* Ensure the Monthly editor card stacks above its siblings (e.g., the chart card) */
+#tab-budget .card.budget-monthly { z-index: 5; }
+
+/* Do NOT clip dropdowns as they extend beyond cell/card bounds */
+#tab-budget .card,
+#tab-budget .tablewrap,
+#tab-budget table,
+#tab-budget tbody {
+  overflow: visible !important;
+}
+
+/* Extra safety: the picker and its menu are on top within the card */
+.catPicker { position: relative; z-index: 1; }
+.catMenu   { z-index: 100000; }  /* the dropdown menu layer */
+
 /* Add custom arrow icon */
 #budgetExpenseTbody select {
   background-image: url("data:image/svg+xml;utf8,<svg fill='%23aaa' height='18' viewBox='0 0 24 24' width='18' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>");
@@ -1662,7 +1682,7 @@ html, body {
   <div class="grid cols1">
 
     <!-- Monthly editor (moved to top) -->
-    <div class="card">
+    <div class="card budget-monthly">
       <div class="row">
         <div>
           <h2 style="margin-bottom:4px;">Monthly editor</h2>
