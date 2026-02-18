@@ -4963,7 +4963,13 @@ function budgetInit(){
   const monthEl = document.getElementById("budgetMonthInput");
   if (yearEl) yearEl.value = y;
   if (monthEl) monthEl.value = ym;
+	
+// Load year view (table + chart)
   budgetLoadYear(y);
+
+  // Load month editor quietly on first paint
+  budgetLoadMonth({ suppressAlert: true }).catch(()=>{});
+
 }
 
 /** ---------------------------
