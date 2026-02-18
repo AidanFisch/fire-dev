@@ -650,6 +650,43 @@ th{
   letter-spacing: .08em;
 }
 
+/* ==== Month pager (compact) ==== */
+.monthPager {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--stroke);
+  background: rgba(255,255,255,.06);
+  border-radius: 999px;
+  padding: 6px 8px;
+}
+
+.monthPager .btn.icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  line-height: 1;
+  font-weight: 800;
+  padding: 0;
+}
+
+#budgetMonthInput {
+  width: 160px;          /* keep it compact */
+  min-width: 140px;
+  max-width: 200px;
+  height: 34px;          /* match button height */
+  padding: 4px 10px;     /* smaller padding */
+  border-radius: 10px;   /* slightly rounded */
+  background: rgba(0,0,0,.25);
+  border: 1px solid var(--stroke);
+}
+
+/* Optional: make the text more compact */
+#budgetMonthInput::-webkit-datetime-edit,
+#budgetMonthInput::-webkit-datetime-edit-fields-wrapper {
+  padding: 0;
+}
+
 /* ===============================
    Mini / quick summary table
    =============================== */
@@ -1686,7 +1723,7 @@ html, body {
           <div class="sub">Edit one month’s planned income & expenses, record actuals.</div>
         </div>
         <div class="row" style="gap:8px;">
-			<div class="row" style="gap:8px;">
+			 <div class="monthPager">
 			  <button class="btn icon" id="btnMonthPrev" aria-label="Previous month">‹</button>
 			
 			  <input id="budgetMonthInput" type="month"
