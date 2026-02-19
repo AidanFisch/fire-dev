@@ -595,11 +595,12 @@
 /* === Chart area full-width inside card === */
 #yearChartSection .sectionBody {
   padding: 0;            /* remove inner padding so the canvas can fill */
+position: relative;
 }
 
 #budgetYearChart {
   display: block;        /* remove inline-canvas spacing */
-  width: 100% !important;
+  width: 100% ;
   height: 420px;         /* pick the height you want (e.g., 380–500px) */
 }
 
@@ -4293,6 +4294,15 @@ const BUDGET_CATEGORY_GROUPS = {
 let budgetChart = null;
 let _budgetExpenses = []; // [{category, planned, actual}]
 
+let _budgetRedrawTimer = null;
+function scheduleBudgetRedraw(){
+  clearTimeout(_budgetRedrawTimer);
+  _budgetRedrawTimer = setTimeout(() => {
+    const isActive = document.getElementById('tab-budget')?.classList.contains('active');
+    if (isActive) renderBudgetChart();
+  }, 120);
+}	
+
 
 
 function apiBaseClean() {
@@ -4353,7 +4363,7 @@ function _syncYearPreviewFromEditor({ ipMonthly, iaMonthly, ep, ea }) {
   copy.income_planned  = ipMonthly;
   copy.income_actual   = (iaMonthly == null ? null : iaMonthly);
   copy.expense_planned = ep;
-  copy.expense_actual  = (iaMonthly == null ? null : ea);
+  copy.expense_actual = (ea == null ? null : ea);
   copy.net_planned     = ipMonthly - ep;
   copy.net_actual      = (iaMonthly == null ? null : (iaMonthly - ea));
 
@@ -4508,8 +4518,14 @@ function drawBudgetBarYear(data){
     return (a <= p) ? '#10b981' : '#ef4444'; // green underspend, red overspend
   });
 
-  const ctx = document.getElementById('budgetYearChart').getContext('2d');
-  if (budgetChart) { budgetChart.destroy(); budgetChart = null; }
+
+  const canvas = document.getElementById('budgetYearChart');
+  const ctx = canvas.getContext('2d');
+
+  // Destroy any existing instance bound to this canvas (bullet‑proof)
+  const existing = Chart.getChart(canvas);
+  if (existing) existing.destroy();
+
 
   budgetChart = new Chart(ctx, {
     type: 'bar',
@@ -4597,8 +4613,14 @@ function drawBudgetBarMonthFromState(){
     return (a <= p) ? '#10b981' : '#ef4444';
   });
 
-  const ctx = document.getElementById('budgetYearChart').getContext('2d');
-  if (budgetChart) { budgetChart.destroy(); budgetChart = null; }
+
+	const canvas = document.getElementById('budgetYearChart');
+	const ctx = canvas.getContext('2d');
+	
+	// Destroy any existing instance bound to this canvas (bullet‑proof)
+	const existing = Chart.getChart(canvas);
+	if (existing) existing.destroy();
+
 
   budgetChart = new Chart(ctx, {
     type: 'bar',
@@ -5128,9 +5150,9 @@ async function budgetLoadMonth(){
     budgetUpdateMonthSummary();
 
     // ⬅️ NEW: If the single-chart is in Month mode, redraw it now
-    if (state.budgetChartMode === 'month') {
-      renderBudgetChart();  // uses current editor state to build the Month bars
-    }
+	if (state.budgetChartMode === 'month') {
+	  scheduleBudgetRedraw();
+	}
 
   } catch(e){
     // If month doesn't exist yet, try to prefill from previous month
@@ -5349,6 +5371,15 @@ window.addEventListener("load", ()=>{
   hydrateUI();
   initLanding();
   budgetInit();
+
+  // 👉 Keep Budget chart sized with its container
+  const section = document.getElementById('yearChartSection');
+  if (section) {
+    const ro = new ResizeObserver(() => {
+      try { budgetChart?.resize(); } catch {}
+    });
+    ro.observe(section);
+  }
 });
 
 /* ====== RESULTS sub-tabs ====== */
@@ -5436,7 +5467,28 @@ const _origShowTab = showTab;
 showTab = function(name){
   ensureInputsAtHome();
   _origShowTab(name);
+
+  // 👉 After the tab is actually visible, draw/resize Budget once layout has settled
+  if (name === 'budget') {
+    requestAnimationFrame(() => {
+      // If we haven’t loaded year data yet, fetch it once, then draw
+      if (!state._lastBudgetYearData) {
+        budgetLoadYear(new Date().getFullYear()).then(() => {
+          renderBudgetChart();
+          try { budgetChart?.resize(); } catch {}
+        }).catch(() => {
+          // Even on failure, try to draw what we can
+          renderBudgetChart();
+          try { budgetChart?.resize(); } catch {}
+        });
+      } else {
+        renderBudgetChart();
+        try { budgetChart?.resize(); } catch {}
+      }
+    });
+  }
 };
+
 
 /* Drawer inner tabs (Core / Stocks & Super / Properties) */
 function showInputsPanel(which){
