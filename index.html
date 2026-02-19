@@ -1119,7 +1119,7 @@ html, body {
 #tab-budget .card { position: relative; }
 
 /* Ensure the Monthly editor card stacks above its siblings (e.g., the chart card) */
-#tab-budget .card.budget-monthly { z-index: 5; }
+#tab-budget .card.budget-monthly { position: relative; z-index: 100; }
 
 /* Do NOT clip dropdowns as they extend beyond cell/card bounds */
 #tab-budget .card,
@@ -1196,7 +1196,7 @@ html, body {
   border-radius: 14px;
   box-shadow: 0 8px 30px rgba(0,0,0,.5);
   padding: 8px;
-  z-index: 10000; /* float over anything below */
+  z-index: 100000; /* float over anything below */
 }
 .catMenu.show { display: block; }
 
@@ -1270,7 +1270,7 @@ html, body {
 }
 
 /* Make the picker and its menu sit above the table content */
-.catPicker { position: relative; z-index: 1; }
+.catPicker { position: relative; z-index: 2; }
 
 
 
@@ -4767,6 +4767,34 @@ function budgetClearExpenseRows(){
   if (tbody) tbody.innerHTML = "";
 }
 
+// --- Dropdown controller (single-open, auto-close on outside click/Esc/scroll) ---
+const _openDropdowns = new Set();
+
+function _closeAllPickers(except = null) {
+  for (const api of Array.from(_openDropdowns)) {
+    if (api !== except) api.hide(/*fromManager=*/true);
+  }
+}
+
+(function installGlobalPickerHandlers(){
+  // Close when clicking anywhere outside an open picker
+  document.addEventListener('mousedown', (e) => {
+    for (const api of _openDropdowns) {
+      if (api.wrap.contains(e.target)) return; // click landed inside an open picker
+    }
+    _closeAllPickers();
+  });
+
+  // Close on Esc
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') _closeAllPickers();
+  });
+
+  // Close on any scroll or resize (prevents “dangling” overlays)
+  window.addEventListener('scroll', () => _closeAllPickers(), true);
+  window.addEventListener('resize', () => _closeAllPickers(), true);
+})();
+
 function createFlatPicker(items, initialValue, onChange, {
   allowOther = false,
   otherLabel = "Other…",
@@ -4809,27 +4837,56 @@ function createFlatPicker(items, initialValue, onChange, {
   }
 
 function show(){
+  // Close others first
+  _closeAllPickers();
+
+  // Measure the button and position the menu as a FIXED overlay so it can overlap everything
+  const r = btn.getBoundingClientRect();
+  const vw = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
+  const width = Math.min(r.width, vw - 24); // keep within viewport
+
   menu.classList.add("show");
+  menu.style.position = 'fixed';
+  menu.style.left = Math.round(r.left) + 'px';
+  menu.style.top  = Math.round(r.bottom + 4) + 'px'; // small gap below the button
+  menu.style.width = Math.round(width) + 'px';
+  menu.style.maxHeight = Math.round(Math.max(220, window.innerHeight * 0.6)) + 'px';
+  menu.style.zIndex = '100000';
+
   btn.setAttribute("aria-expanded", "true");
 
-  // reset search & rebuild if you have them
+  // Reset search + rebuild contents
   if (typeof searchInput !== 'undefined') searchInput.value = "";
   if (typeof rebuild === 'function') rebuild();
 
-  // focus search after open (optional)
+  // Focus the search for keyboard users
   if (typeof searchInput !== 'undefined') {
     try { searchInput.focus(); } catch(_) {}
   }
 
-  // close on outside click
-  document.addEventListener("click", onDocClick, { once: true });
-  document.addEventListener("keydown", onKey);
+  // Register with the global controller so outside‑click/Esc/scroll can close it
+  const api = { wrap, btn, menu, hide };
+  menu._pickerApi = api;
+  _openDropdowns.add(api);
 }
-function hide(){
+
+function hide(fromManager = false){
   menu.classList.remove("show");
   btn.setAttribute("aria-expanded", "false");
-  document.removeEventListener("keydown", onKey);
+
+  // Clear fixed overlay styles so layout returns to normal when hidden
+  menu.style.position = '';
+  menu.style.left = '';
+  menu.style.top = '';
+  menu.style.width = '';
+  menu.style.maxHeight = '';
+  menu.style.zIndex = '';
+
+  if (!fromManager && menu._pickerApi) {
+    _openDropdowns.delete(menu._pickerApi);
+  }
 }
+
 
 
 
@@ -5659,7 +5716,7 @@ let _budgetChartRaf = 0;
 let _budgetChartPending = false;
 
 // Adjust this if you want more/less buffering; 80–160ms feels good for UI
-const _BUDGET_CHART_DEBOUNCE_MS = 80;
+const _BUDGET_CHART_DEBOUNCE_MS = 120;
 
 function _flushBudgetChartOnce() {
   // Cancel any in-flight RAF; we only want one
