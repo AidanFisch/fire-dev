@@ -1129,9 +1129,6 @@ html, body {
   overflow: visible !important;
 }
 
-/* Extra safety: the picker and its menu are on top within the card */
-.catPicker { position: relative; z-index: 1; }
-.catMenu   { z-index: 100000; }  /* the dropdown menu layer */
 
 /* Add custom arrow icon */
 #budgetExpenseTbody select {
@@ -4837,25 +4834,22 @@ function createFlatPicker(items, initialValue, onChange, {
   }
 
 function show(){
-  // Close others first
+  // Close any other picker
   _closeAllPickers();
 
-  // Measure the button and position the menu as a FIXED overlay so it can overlap everything
-  const r = btn.getBoundingClientRect();
-  const vw = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
-  const width = Math.min(r.width, vw - 24); // keep within viewport
-
+  // Use the CSS dropdown behaviour (absolute under the button)
   menu.classList.add("show");
-  menu.style.position = 'fixed';
-  menu.style.left = Math.round(r.left) + 'px';
-  menu.style.top  = Math.round(r.bottom + 4) + 'px'; // small gap below the button
-  menu.style.width = Math.round(width) + 'px';
-  menu.style.maxHeight = Math.round(Math.max(220, window.innerHeight * 0.6)) + 'px';
-  menu.style.zIndex = '100000';
-
   btn.setAttribute("aria-expanded", "true");
 
-  // Reset search + rebuild contents
+  // Make sure any previous inline styles are cleared (in case you tried fixed before)
+  menu.style.position = '';
+  menu.style.left = '';
+  menu.style.top = '';
+  menu.style.width = '';
+  menu.style.maxHeight = '';
+  menu.style.zIndex = '';
+
+  // Reset search & rebuild
   if (typeof searchInput !== 'undefined') searchInput.value = "";
   if (typeof rebuild === 'function') rebuild();
 
@@ -4864,7 +4858,7 @@ function show(){
     try { searchInput.focus(); } catch(_) {}
   }
 
-  // Register with the global controller so outside‑click/Esc/scroll can close it
+  // Register with the global controller so outside-click/Esc/scroll can close it
   const api = { wrap, btn, menu, hide };
   menu._pickerApi = api;
   _openDropdowns.add(api);
@@ -4874,14 +4868,7 @@ function hide(fromManager = false){
   menu.classList.remove("show");
   btn.setAttribute("aria-expanded", "false");
 
-  // Clear fixed overlay styles so layout returns to normal when hidden
-  menu.style.position = '';
-  menu.style.left = '';
-  menu.style.top = '';
-  menu.style.width = '';
-  menu.style.maxHeight = '';
-  menu.style.zIndex = '';
-
+  // Nothing special to clear; we’re using the CSS absolute dropdown
   if (!fromManager && menu._pickerApi) {
     _openDropdowns.delete(menu._pickerApi);
   }
