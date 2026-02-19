@@ -4417,7 +4417,7 @@ async function budgetCopyLast(){
   const m = document.getElementById("budgetMonthInput").value;
   if(!m){ alert("Pick a month"); return; }
 
-  // Don't overwrite existing entries without asking
+  // Don't overwrite existing entries without asking (keeps your current UX)
   const hasData =
     (Number(document.getElementById("budgetIncomePlanned").value) || 0) !== 0 ||
     _budgetExpenses.length > 0;
@@ -4427,9 +4427,22 @@ async function budgetCopyLast(){
     if(!ok) return;
   }
 
+  // Prefill from previous month
   const copied = await budgetPrefillFromPrevious(m);
-  if(!copied) alert("No previous month found to copy from.");
+  if(!copied){
+    alert("No previous month found to copy from.");
+    return;
+  }
+
+  // At this point the UI has been populated by budgetPrefillFromPrevious()
+  // (it already calls budgetUpdateMonthSummary), so just save.
+  try {
+    await budgetSave();  // Uses your existing toast/alerts
+  } catch (e) {
+    console.error(e);
+  }
 }
+
 	
 async function budgetYearReload(){
   const el = document.getElementById("budgetYearInput");
