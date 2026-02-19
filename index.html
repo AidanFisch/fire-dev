@@ -587,6 +587,9 @@
   flex: 0 0 auto;
 }
 
+/* Budget: make the Yearly overview table fill the section width */
+#budgetYearTable table { width: 100%; min-width: 0; }
+
 #tab-budget td .amountInput {
   max-width: 160px;        /* keep a sensible width */
   flex: 1 1 auto;
@@ -4585,7 +4588,7 @@ function drawBudgetBarYear(data){
         }
       },
       scales: {
-        x: { stacked: true, ticks: { color: 'rgba(255,255,255,.75)' }, grid: { color: 'rgba(255,255,255,.06)' } },
+        x: { offset: true, stacked: true, ticks: { color: 'rgba(255,255,255,.75)' }, grid: { color: 'rgba(255,255,255,.06)' } },
         y: {
           stacked: true,
           ticks: { color: 'rgba(255,255,255,.55)', callback: v => moneyAxis(v) },
