@@ -5291,13 +5291,12 @@ async function budgetLoadMonth(){
 	}
 
   } catch(e){
-    // If month doesn't exist yet, try to prefill from previous month
-    budgetClearExpenseRows();
-    document.getElementById("budgetIncomePlanned").value = 0;
-    document.getElementById("budgetIncomeActual").value = "";
-
-    const currentYm = document.getElementById("budgetMonthInput").value;
-    const copied = await budgetPrefillFromPrevious(currentYm);
+		// If month doesn't exist yet, do NOT prefill automatically (removed confusing behaviour)
+		// budgetClearExpenseRows();
+		// document.getElementById("budgetIncomePlanned").value = 0;
+		// document.getElementById("budgetIncomeActual").value = "";
+		// const currentYm = document.getElementById("budgetMonthInput").value;
+		// const copied = await budgetPrefillFromPrevious(currentYm);
 
     // Whether copied or not, keep the UI coherent
     budgetUpdateMonthSummary();
