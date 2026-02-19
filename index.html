@@ -5519,6 +5519,48 @@ function showInputsPanel(which){
   });
 }
 
+function commitOnEnterOrBlur(el, fn) {
+  if (!el) return;
+  let last = el.value;
+
+  el.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      el.blur();
+    }
+  });
+
+  el.addEventListener("blur", () => {
+    if (el.value !== last) {
+      last = el.value;
+      fn();
+    }
+  });
+
+  el.addEventListener("change", () => {
+    if (el.value !== last) {
+      last = el.value;
+      fn();
+    }
+  });
+}
+
+// --- MONTH editor: only update on Enter/blur/change ---
+commitOnEnterOrBlur(document.getElementById("budgetIncomePlanned"), budgetUpdateMonthSummary);
+commitOnEnterOrBlur(document.getElementById("budgetIncomeActual"),  budgetUpdateMonthSummary);
+
+commitOnEnterOrBlur(document.getElementById("budgetIncomePlannedFreq"), budgetUpdateMonthSummary);
+commitOnEnterOrBlur(document.getElementById("budgetIncomeActualFreq"),  budgetUpdateMonthSummary);
+
+// Month picker: remove live updates
+(function() {
+  const m = document.getElementById("budgetMonthInput");
+  if (!m) return;
+  m.oninput = null;  // safely disable inline handler without touching load logic
+  commitOnEnterOrBlur(m, budgetLoadMonth);
+})();
+
+
 
 
 </script>
