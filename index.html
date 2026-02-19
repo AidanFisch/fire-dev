@@ -5588,54 +5588,7 @@ commitOnEnterOrBlur(document.getElementById("budgetIncomeActualFreq"),  budgetUp
 })();
 
 
-<script>
-// ===== Smooth, coalesced Budget chart rendering (global shim) =====
 
-// Keep a handle to the current immediate renderer
-const _renderBudgetChartImmediate = window.renderBudgetChart;
-
-// Simple scheduler: coalesce many calls -> 1 draw next frame, after a short debounce
-let _budgetChartDebounceTimer = null;
-let _budgetChartRaf = 0;
-let _budgetChartPending = false;
-
-// Adjust this if you want more/less buffering; 80–160ms feels good for UI
-const _BUDGET_CHART_DEBOUNCE_MS = 120;
-
-function _flushBudgetChartOnce() {
-  // Cancel any in-flight RAF; we only want one
-  if (_budgetChartRaf) cancelAnimationFrame(_budgetChartRaf);
-  _budgetChartRaf = requestAnimationFrame(() => {
-    _budgetChartPending = false;
-    try {
-      // Call your original, immediate renderer
-      _renderBudgetChartImmediate();
-      // One gentle resize after layout settles (no-op if chart isn't ready)
-      try { window.budgetChart?.resize(); } catch (_) {}
-    } catch (e) {
-      console.error("renderBudgetChart failed:", e);
-    }
-  });
-}
-
-// Replace the global function with a scheduler
-window.renderBudgetChart = function scheduledRenderBudgetChart() {
-  // If a draw is already queued, do nothing
-  if (_budgetChartPending) return;
-  _budgetChartPending = true;
-
-  // Reset debounce so bursts coalesce
-  if (_budgetChartDebounceTimer) clearTimeout(_budgetChartDebounceTimer);
-  _budgetChartDebounceTimer = setTimeout(_flushBudgetChartOnce, _BUDGET_CHART_DEBOUNCE_MS);
-};
-
-// Optional: expose a "draw now" escape hatch for rare places that must be instant
-window.renderBudgetChartNow = function renderBudgetChartNow() {
-  _budgetChartPending = false;
-  if (_budgetChartDebounceTimer) { clearTimeout(_budgetChartDebounceTimer); _budgetChartDebounceTimer = null; }
-  _flushBudgetChartOnce();
-};
-</script>
 
 
 </script>
