@@ -5260,27 +5260,36 @@ async function budgetLoadMonth(){
     if(!r.ok) throw new Error(await r.text());
     const data = await r.json();
 
-    // Income
-    document.getElementById("budgetIncomePlanned").value = data.income?.planned ?? 0;
-    document.getElementById("budgetIncomeActual").value  =
-      (data.income?.actual ?? "") === null ? "" : (data.income?.actual ?? "");
-    // Frequencies (default to "month" if missing)
-    document.getElementById("budgetIncomePlannedFreq").value = data.income?.planned_freq || "month";
-    document.getElementById("budgetIncomeActualFreq").value  = data.income?.actual_freq  || "month";
+    const data = await r.json();
 
-    // Categories
-    budgetClearExpenseRows();
-    (data.categories || []).forEach(cat => {
-      const { group, category } = parseCategoryLabel(cat.category);
-      budgetAddExpenseRow({
-        group,
-        category,
-        planned: cat.planned ?? 0,
-        actual:  (cat.actual === null ? null : cat.actual),
-        plannedFreq: cat.planned_freq || "month",
-        actualFreq:  cat.actual_freq  || "month"
-      });
-    });
+	// --- reset UI to a clean state first ---
+	budgetClearExpenseRows();
+	document.getElementById("budgetIncomePlanned").value = 0;
+	document.getElementById("budgetIncomeActual").value  = "";
+	document.getElementById("budgetIncomePlannedFreq").value = "month";
+	document.getElementById("budgetIncomeActualFreq").value  = "month";
+	
+	// --- now apply values returned by the API (if any) ---
+	if (data?.income) {
+	  document.getElementById("budgetIncomePlanned").value = data.income.planned ?? 0;
+	  document.getElementById("budgetIncomeActual").value  =
+	    (data.income.actual ?? "") === null ? "" : (data.income.actual ?? "");
+	  document.getElementById("budgetIncomePlannedFreq").value = data.income.planned_freq || "month";
+	  document.getElementById("budgetIncomeActualFreq").value  = data.income.actual_freq  || "month";
+	}
+	
+	// Categories (may be empty; that’s OK — we stay blank)
+	(data.categories || []).forEach(cat => {
+	  const { group, category } = parseCategoryLabel(cat.category);
+	  budgetAddExpenseRow({
+	    group,
+	    category,
+	    planned: cat.planned ?? 0,
+	    actual:  (cat.actual === null ? null : cat.actual),
+	    plannedFreq: cat.planned_freq || "month",
+	    actualFreq:  cat.actual_freq  || "month"
+	  });
+});
 
     // Update summary
     budgetUpdateMonthSummary();
@@ -5292,7 +5301,7 @@ async function budgetLoadMonth(){
 
   } catch(e){
 		// If month doesn't exist yet, do NOT prefill automatically (removed confusing behaviour)
-		// budgetClearExpenseRows();
+		budgetClearExpenseRows();
 		// document.getElementById("budgetIncomePlanned").value = 0;
 		// document.getElementById("budgetIncomeActual").value = "";
 		// const currentYm = document.getElementById("budgetMonthInput").value;
