@@ -4500,6 +4500,7 @@ function renderBudgetYearTable(data){
 }
 
 function drawBudgetBarYear(data){
+	hardSizeBudgetCanvas(420);
   const months = (data?.months || []).map(x => x.month);
   const planned = (data?.months || []).map(x => Number(x.expense_planned || 0));
   const actual  = (data?.months || []).map(x => {
@@ -4592,6 +4593,7 @@ function renderBudgetCategoryChips(labels){
 }
 
 function drawBudgetBarMonthFromState(){
+	hardSizeBudgetCanvas(420);
   // Build labels from rows => ensures all categories on X-axis
   const labels = _budgetExpenses.map(x => formatCategory(x.group, x.category) || '(uncategorised)');
 
@@ -4684,6 +4686,16 @@ function renderBudgetChart(){
   } else {
     drawBudgetBarMonthFromState();
   }
+}
+
+function hardSizeBudgetCanvas(px = 420){
+  const canvas = document.getElementById('budgetYearChart');
+  if (!canvas) return;
+  // lock the layout height before Chart.js measures
+  canvas.style.height = px + 'px';
+  canvas.style.maxHeight = px + 'px';
+  // also set the element attribute (buffer size) to avoid a one‑frame overshoot
+  try { canvas.height = px; } catch(_) {}
 }
 	
 function budgetClearExpenseRows(){
