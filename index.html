@@ -4703,6 +4703,10 @@ function renderBudgetChart(){
   } else {
     drawBudgetBarMonthFromState();
   }
+// Keep the Yearly overview table in sync with the same coalesced render
+  if (state?._lastBudgetYearData) {
+    renderBudgetYearTable(state._lastBudgetYearData);
+  }
 }
 
 function hardSizeBudgetCanvas(px = 420){
@@ -5600,7 +5604,7 @@ let _budgetChartRaf = 0;
 let _budgetChartPending = false;
 
 // Adjust this if you want more/less buffering; 80–160ms feels good for UI
-const _BUDGET_CHART_DEBOUNCE_MS = 120;
+const _BUDGET_CHART_DEBOUNCE_MS = 80;
 
 function _flushBudgetChartOnce() {
   // Cancel any in-flight RAF; we only want one
