@@ -1822,6 +1822,13 @@ html, body {
 		            onclick="showBudgetChart('month')">Month</button>
 
       </div>
+			<!-- NEW: Aggregation toggle -->
+		<div class="subnav" role="tablist" aria-label="Budget aggregation">
+		  <button id="btnAggAll" class="active" role="tab" aria-selected="true"
+		          onclick="showBudgetAgg('all')">All</button>
+		  <button id="btnAggCategory" role="tab" aria-selected="false"
+		          onclick="showBudgetAgg('category')">Category</button>
+		</div>
 
 		</div>
 			
@@ -1835,7 +1842,6 @@ html, body {
             <h2>Tracking chart</h2>
           </div>
           <div class="sectionBody">
-			  <div id="budgetCatChips" class="chips" style="display:none; margin-bottom:8px;"></div>
             <canvas id="budgetYearChart"></canvas>
           </div>
         </div>
@@ -1982,6 +1988,8 @@ let state = {
 state.budgetChartMode = state.budgetChartMode || 'year';  // 'year' | 'month'
 state.budgetCategoryToggles = state.budgetCategoryToggles || {}; // label -> boolean
 state._lastBudgetYearData = state._lastBudgetYearData || null;
+
+state.budgetAggMode = state.budgetAggMode || 'all';
 	
 
 	// ===== Theme handling =====
@@ -4611,35 +4619,72 @@ function renderBudgetCategoryChips(labels){
 }
 
 function drawBudgetBarMonthFromState(){
-  // Build labels from rows => ensures all categories on X-axis
-  const labels = _budgetExpenses.map(x => formatCategory(x.group, x.category) || '(uncategorised)');
+  // Helper: normalize one row to monthly
+  const pMon = (x) => toMonthlyAmount(Number(x.planned)||0, x.plannedFreq || 'month');
+  const aMon = (x) => (x.actual==null) ? null : toMonthlyAmount(Number(x.actual)||0, x.actualFreq || 'month');
 
-  // Normalize to monthly
-  const plannedRaw = _budgetExpenses.map(x => toMonthlyAmount(Number(x.planned)||0, x.plannedFreq || 'month'));
-  const actualRaw  = _budgetExpenses.map(x => (x.actual==null) ? null : toMonthlyAmount(Number(x.actual)||0, x.actualFreq || 'month'));
+  let labels = [];
+  let planned = [];
+  let delta = [];
+  let deltaColors = [];
 
-  // Apply per-category toggle (keep labels; just zero data when disabled)
-  const planned = plannedRaw.map((p,i) => (state.budgetCategoryToggles[labels[i]] === false ? 0 : p));
-  const delta   = plannedRaw.map((p,i) => {
-    if (state.budgetCategoryToggles[labels[i]] === false) return 0;
-    const a = actualRaw[i];
-    if (a == null) return 0; // no actual yet -> no delta stack
-    return Math.abs(a - p);
-  });
-  const deltaColors = plannedRaw.map((p,i) => {
-    const a = actualRaw[i];
-    if (state.budgetCategoryToggles[labels[i]] === false || a == null) return 'rgba(0,0,0,0)';
-    return (a <= p) ? '#10b981' : '#ef4444';
-  });
+  if (state.budgetAggMode === 'category') {
+    // ---- Roll up children into their parent group (category) ----
+    const groupMap = new Map(); // group -> { pSum, aSumNullAware }
+    _budgetExpenses.forEach(x => {
+      const g = (x.group && String(x.group).trim()) ? x.group.trim() : 'Other';
+      const p = pMon(x);
+      const a = aMon(x);
+      const cur = groupMap.get(g) || { p:0, a:null };
+      cur.p += p;
+      // For actual: sum non-null values; if *all* are null, keep null
+      if (a !== null) cur.a = (cur.a === null ? 0 : cur.a) + a;
+      groupMap.set(g, cur);
+    });
 
+    // Build arrays in stable group name order
+    labels = Array.from(groupMap.keys());
+    labels.sort((a,b) => a.localeCompare(b));
+    planned = labels.map(g => groupMap.get(g).p);
+    const actualRolled = labels.map(g => groupMap.get(g).a); // may contain nulls
 
-	const canvas = document.getElementById('budgetYearChart');
-	const ctx = canvas.getContext('2d');
-	
-	// Destroy any existing instance bound to this canvas (bullet‑proof)
-	const existing = Chart.getChart(canvas);
-	if (existing) existing.destroy();
+    delta = planned.map((p,i) => {
+      const a = actualRolled[i];
+      if (a == null) return 0;
+      return Math.abs(a - p);
+    });
+    deltaColors = planned.map((p,i) => {
+      const a = actualRolled[i];
+      if (a == null) return 'rgba(0,0,0,0)';
+      return (a <= p) ? '#10b981' : '#ef4444';
+    });
 
+  } else {
+    // ---- 'All' (children) – your current behavior (Group — Subcategory labels) ----
+    labels = _budgetExpenses.map(x => formatCategory(x.group, x.category) || '(uncategorised)');
+    const plannedRaw = _budgetExpenses.map(pMon);
+    const actualRaw  = _budgetExpenses.map(aMon);
+
+    planned = plannedRaw.slice();
+    delta   = plannedRaw.map((p,i) => {
+      const a = actualRaw[i];
+      if (a == null) return 0;
+      return Math.abs(a - p);
+    });
+    deltaColors = plannedRaw.map((p,i) => {
+      const a = actualRaw[i];
+      if (a == null) return 'rgba(0,0,0,0)';
+      return (a <= p) ? '#10b981' : '#ef4444';
+    });
+  }
+
+  // ---- Render the chart (unchanged below) ----
+  const canvas = document.getElementById('budgetYearChart');
+  const ctx = canvas.getContext('2d');
+
+  // Destroy any existing instance bound to this canvas (bullet‑proof)
+  const existing = Chart.getChart(canvas);
+  if (existing) existing.destroy();
 
   budgetChart = new Chart(ctx, {
     type: 'bar',
@@ -4652,7 +4697,7 @@ function drawBudgetBarMonthFromState(){
     },
     options: {
       responsive: true,
-		maintainAspectRatio: false,
+      maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: true },
@@ -4660,12 +4705,12 @@ function drawBudgetBarMonthFromState(){
           callbacks: {
             label: (c) => {
               const i = c.dataIndex;
-              const p = plannedRaw[i];
-              const a = actualRaw[i];
-              if (c.dataset.label.startsWith('Δ')) {
-                if (a == null) return 'No actual yet';
-                const diff = a - p;
-                return (diff <= 0) ? `Underspend: ${fmtMoney(Math.abs(diff))}` : `Overspend: ${fmtMoney(diff)}`;
+              const p = planned[i];
+              const isDelta = c.dataset.label.startsWith('Δ');
+              if (isDelta) {
+                // Actual equals Planned + (signed diff based on color)
+                // We’ll reconstruct the sign from color: green=underspend, red=overspend
+                return 'Δ (under/over): ' + (c.raw ? `${p < (p + c.raw) ? 'Overspend: ' : 'Underspend: '}${fmtMoney(c.raw)}` : 'No actual yet');
               }
               return `Planned: ${fmtMoney(p)}`;
             }
@@ -4678,14 +4723,11 @@ function drawBudgetBarMonthFromState(){
           stacked: true,
           ticks: { color: 'rgba(255,255,255,.55)', callback: v => moneyAxis(v) },
           grid: { color: 'rgba(255,255,255,.06)' },
-          title: { display: true, text: 'Spend by category (monthly)', font: { size: 14, weight: '700' } }
+          title: { display: true, text: (state.budgetAggMode==='category' ? 'Spend by category (monthly)' : 'Spend by category item (monthly)'), font: { size: 14, weight: '700' } }
         }
       }
     }
   });
-
-  // Build/refresh chips for category toggling
-  renderBudgetCategoryChips(labels);
 }
 
 
@@ -5387,6 +5429,19 @@ function showBudgetChart(which){
   if (bMonth) { bMonth.classList.toggle('active', state.budgetChartMode==='month'); bMonth.setAttribute('aria-selected', String(state.budgetChartMode==='month')); }
 
   renderBudgetChart();  // draw immediately
+}
+
+function showBudgetAgg(which){
+  state.budgetAggMode = (which === 'category') ? 'category' : 'all';
+
+  // update button look + aria
+  const bAll = document.getElementById('btnAggAll');
+  const bCat = document.getElementById('btnAggCategory');
+  if (bAll) { bAll.classList.toggle('active', state.budgetAggMode==='all');       bAll.setAttribute('aria-selected', String(state.budgetAggMode==='all')); }
+  if (bCat) { bCat.classList.toggle('active', state.budgetAggMode==='category');  bCat.setAttribute('aria-selected', String(state.budgetAggMode==='category')); }
+
+  // one smooth repaint (your scheduler will coalesce)
+  renderBudgetChart();
 }
 
 function budgetInit(){
