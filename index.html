@@ -1705,7 +1705,10 @@ html, body {
         <div class="row">
           <h3 style="margin:0;">Full table</h3>
           <div class="row" style="gap:10px;">
-            <input id="tableSearch" placeholder="Search columns/values…" oninput="renderFullTable()" style="max-width:320px"/>
+            <input id="tableSearch" placeholder="Search columns/values…"
+       onchange="renderFullTable()"
+       onkeydown="if(event.key==='Enter'){ this.blur(); }"
+       style="max-width:320px"/>
             <button class="btn" onclick="toggleFullTable()">Toggle full table</button>
           </div>
         </div>
@@ -1737,9 +1740,10 @@ html, body {
         <div class="row" style="gap:8px;">
 			 <div class="monthPager">
 			  <button class="btn icon" id="btnMonthPrev" aria-label="Previous month">‹</button>
-			
-			  <input id="budgetMonthInput" type="month"
-			         oninput="budgetLoadMonth()" onchange="budgetLoadMonth()" />
+						
+			<input id="budgetMonthInput" type="month"
+			       onchange="budgetLoadMonth()"
+			       onkeydown="if(event.key==='Enter'){ this.blur(); }" />
 			
 			  <button class="btn icon" id="btnMonthNext" aria-label="Next month">›</button>
 			
@@ -5035,9 +5039,14 @@ inpPlanned.type = "number";
 inpPlanned.step = "1";
 inpPlanned.value = String(row.planned || 0);
 inpPlanned.className = "amountInput";
-inpPlanned.oninput = (e) => {
-  row.planned = Number(e.target.value) || 0;
+// commit only on Enter / blur (no per‑keystroke updates)
+inpPlanned.oninput = null;
+inpPlanned.onblur = () => {
+  row.planned = Number(inpPlanned.value) || 0;
   budgetUpdateMonthSummary();
+};
+inpPlanned.onkeydown = (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); inpPlanned.blur(); }
 };
 plannedWrap.appendChild(inpPlanned);
 
@@ -5071,9 +5080,14 @@ inpActual.type = "number";
 inpActual.step = "1";
 inpActual.value = row.actual == null ? "" : String(row.actual);
 inpActual.className = "amountInput";
-inpActual.oninput = (e) => {
-  row.actual = (e.target.value === "" ? null : (Number(e.target.value) || 0));
+// commit only on Enter / blur (no per‑keystroke updates)
+inpActual.oninput = null;
+inpActual.onblur = () => {
+  row.actual = (inpActual.value === "" ? null : (Number(inpActual.value) || 0));
   budgetUpdateMonthSummary();
+};
+inpActual.onkeydown = (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); inpActual.blur(); }
 };
 actualWrap.appendChild(inpActual);
 
