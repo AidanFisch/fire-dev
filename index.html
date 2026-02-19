@@ -1146,6 +1146,9 @@ html, body {
   z-index: 5;              /* keep the picker above table cells */
 }
 
+.catPicker.open { z-index: 200000; }
+#tab-budget thead th { z-index: 10; }
+
 .catPickerBtn {
   width: 100%;
   padding: 12px;
@@ -4837,6 +4840,8 @@ function show(){
   // Close any other picker
   _closeAllPickers();
 
+wrap.classList.add('open');
+
   // Use the CSS dropdown behaviour (absolute under the button)
   menu.classList.add("show");
   btn.setAttribute("aria-expanded", "true");
@@ -4867,6 +4872,8 @@ function show(){
 function hide(fromManager = false){
   menu.classList.remove("show");
   btn.setAttribute("aria-expanded", "false");
+
+	wrap.classList.remove('open');
 
   // Nothing special to clear; we’re using the CSS absolute dropdown
   if (!fromManager && menu._pickerApi) {
