@@ -4500,7 +4500,6 @@ function renderBudgetYearTable(data){
 }
 
 function drawBudgetBarYear(data){
-	hardSizeBudgetCanvas(420);
   const months = (data?.months || []).map(x => x.month);
   const planned = (data?.months || []).map(x => Number(x.expense_planned || 0));
   const actual  = (data?.months || []).map(x => {
@@ -4593,7 +4592,6 @@ function renderBudgetCategoryChips(labels){
 }
 
 function drawBudgetBarMonthFromState(){
-	hardSizeBudgetCanvas(420);
   // Build labels from rows => ensures all categories on X-axis
   const labels = _budgetExpenses.map(x => formatCategory(x.group, x.category) || '(uncategorised)');
 
@@ -4686,16 +4684,6 @@ function renderBudgetChart(){
   } else {
     drawBudgetBarMonthFromState();
   }
-}
-
-function hardSizeBudgetCanvas(px = 420){
-  const canvas = document.getElementById('budgetYearChart');
-  if (!canvas) return;
-  // lock the layout height before Chart.js measures
-  canvas.style.height = px + 'px';
-  canvas.style.maxHeight = px + 'px';
-  // also set the element attribute (buffer size) to avoid a one‑frame overshoot
-  try { canvas.height = px; } catch(_) {}
 }
 	
 function budgetClearExpenseRows(){
@@ -5355,11 +5343,7 @@ function showBudgetChart(which){
   if (bYear)  { bYear.classList.toggle('active', state.budgetChartMode==='year');  bYear.setAttribute('aria-selected', String(state.budgetChartMode==='year')); }
   if (bMonth) { bMonth.classList.toggle('active', state.budgetChartMode==='month'); bMonth.setAttribute('aria-selected', String(state.budgetChartMode==='month')); }
 
-// Defer one tick so DOM (chips visibility / layout) has settled before measuring
-requestAnimationFrame(() => {
-  renderBudgetChart();
-  try { budgetChart?.resize(); } catch {}
-});
+  renderBudgetChart();  // draw immediately
 }
 
 function budgetInit(){
@@ -5389,26 +5373,27 @@ window.addEventListener("load", ()=>{
   budgetInit();
 
   // 👉 Keep Budget chart sized with its container
-// 👉 Keep Budget chart sized with its container (width-only guard)
-const section = document.getElementById('yearChartSection');
-if (section) {
-  let _lastWidth = null;
-  const ro = new ResizeObserver((entries) => {
-    const entry = entries[0];
-    // Compute current width; prefer border-box size when available
-    const w = Math.round(
-      (entry.borderBoxSize?.[0]?.inlineSize) ??
-      (entry.contentBoxSize?.[0]?.inlineSize) ??
-      entry.contentRect?.width ??
-      section.clientWidth
-    );
-    if (_lastWidth !== w) {
-      _lastWidth = w;
+  const section = document.getElementById('yearChartSection');
+  if (section) {
+    const ro = new ResizeObserver(() => {
       try { budgetChart?.resize(); } catch {}
+    });
+    ro.observe(section);
+  }
+});
+
+/* ====== RESULTS sub-tabs ====== */
+function showResultsSubtab(name){
+  const all = ["overview","charts","tables"];
+  all.forEach(n => {
+    document.getElementById(`subtab-${n}`)?.classList.toggle("active", n === name);
+    const btnId = `btnSub${n.charAt(0).toUpperCase()+n.slice(1)}`;
+    const btn = document.getElementById(btnId);
+    if (btn){
+      btn.classList.toggle("active", n === name);
+      btn.setAttribute("aria-selected", String(n === name));
     }
-    // NOTE: ignore height changes to avoid feedback loops (common when month chips wrap)
   });
-  ro.observe(section);
 }
 
 /* ====== Inputs Drawer ====== */
@@ -5523,7 +5508,7 @@ function showInputsPanel(which){
 }
 
 
-});
+
 </script>
 
 </body>
